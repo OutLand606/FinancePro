@@ -81,7 +81,7 @@ const EmployeeManager: React.FC<GlobalDataProps> = ({ transactions, projects, co
         ]);
         setEmployees(emps);
         setTemplates(tpls);
-        setRoles(getSystemRoles());
+        setRoles( await getSystemRoles());
     } catch (e) {
         console.error("Failed to load employee data", e);
     }

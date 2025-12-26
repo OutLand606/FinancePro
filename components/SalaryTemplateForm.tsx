@@ -35,7 +35,16 @@ const SalaryTemplateForm: React.FC<SalaryTemplateFormProps> = ({ initialData, on
     const [testResults, setTestResults] = useState<Record<string, number>>({});
 
     useEffect(() => {
-        setAllComponents(getSalaryComponents());
+        const loadComponents = async () => {
+            try {
+                const components = await getSalaryComponents(); // Chờ API trả về dữ liệu
+                setAllComponents(components);
+            } catch (error) {
+                console.error("Lỗi tải thành phần lương:", error);
+            }
+        };
+
+        loadComponents();
     }, []);
 
     const handleAddComponent = (comp: SalaryComponent) => {
