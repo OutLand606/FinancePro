@@ -72,7 +72,7 @@ export const loginWithEmail = async (
       employees = [...employees, ...MOCK_EMPLOYEES_LIST];
     }
 
-    const roles = getSystemRoles();
+    const roles = await getSystemRoles();
 
     const emp = employees.find(
       (e) => e.email.toLowerCase() === email.toLowerCase()

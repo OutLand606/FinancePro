@@ -18,7 +18,7 @@ import { getSettings } from './sheetService';
 const UPLOAD_DELAY_MS = 2000; // 2 seconds to simulate network
 
 export const uploadFileToDrive = async (file: File): Promise<Attachment> => {
-    const settings = getSettings();
+    const settings = await getSettings();
     const driveConfig: GoogleStorageConfig = settings.googleStorage || {
         driveFolderId: '',
         projectSubFolder: true,

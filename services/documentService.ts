@@ -2,7 +2,6 @@
 import { Document, ProcessingStatus, DocumentType, PriceRecord, MaterialMaster, Partner, DataSource, ExtractedItem } from '../types';
 import { INITIAL_PRICE_RECORDS } from '../constants';
 import { extractInvoiceDataWithGemini } from './aiExtractionService';
-import { getSettings } from './sheetService';
 import { fetchMaterialMaster } from './masterDataService';
 
 const STORAGE_KEYS = {
