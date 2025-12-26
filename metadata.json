@@ -1,0 +1,7 @@
+{
+  "name": "FinancePro Construction Manager 1.6",
+  "description": "A professional financial management dashboard for construction projects, replacing manual spreadsheets with secure, dynamic project tracking and AI-powered analysis.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
