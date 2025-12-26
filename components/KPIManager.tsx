@@ -295,10 +295,19 @@ const KPIManager: React.FC<KPIManagerProps> = ({ transactions, projects }) => {
   const availableEmployees = employees.filter(
     (e) => !kpiRecords.some((r) => r.empId === e.id)
   );
-  const totalRevenue = kpiRecords.reduce(
-    (s, r) => s + r.actualRevenue + (r.manualRevenueAdjustment || 0),
-    0
-  );
+  const totalRevenue = useMemo(() => {
+    return transactions.reduce((sum, t) => {
+        // 1. Chỉ lấy Phiếu Thu + Đã Thanh Toán + Trong tháng chọn
+        const isValid = t.type === 'INCOME' && t.status === 'PAID' && t.date.startsWith(selectedMonth);
+        
+        if (isValid) {
+            // 2. Tính Net (Chia 1.1)
+            const net = t.vatAmount ? (t.amount - t.vatAmount) : Math.round(t.amount / 1.1);
+            return sum + net;
+        }
+        return sum;
+    }, 0);
+  }, [transactions, selectedMonth]);
   const totalCommission = kpiRecords.reduce((s, r) => s + r.totalCommission, 0);
   const isLocked = period?.status === "LOCKED";
 
