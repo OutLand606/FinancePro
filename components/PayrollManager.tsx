@@ -289,6 +289,10 @@ const PayrollManager: React.FC = () => {
                                   <td className="px-4 py-3 font-bold text-slate-700">
                                       {slip.empName}
                                       <div className="text-[10px] text-slate-400 font-normal">{slip.roleName}</div>
+                                      <div className="text-[10px] text-indigo-500 font-medium flex items-center mt-1">
+                                        <TableProperties size={10} className="mr-1"/>
+                                        {slip.templateSnapshot?.name || 'Chưa gán mẫu'}
+                                      </div>
                                   </td>
                                   <td className="px-4 py-3 text-center">{slip.actualWorkDays}</td>
                                   <td className="px-4 py-3 text-right">{slip.baseSalary.toLocaleString()}</td>
