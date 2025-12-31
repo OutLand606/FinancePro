@@ -2,12 +2,11 @@
 import { PriceRecord, DataSource, Transaction, TransactionType, TransactionStatus, MaterialCategory, DocumentType, MaterialMaster } from '../types';
 import { fetchMaterialMaster } from './masterDataService';
 import { GoogleGenAI } from "@google/genai";
-import { getSettings } from './sheetService';
 import { api } from './api';
+import { GEMINI_API_KEY } from '@/constants';
 
 const getAiClient = async () => {
-    const settings = await getSettings(); 
-    const apiKey = settings.geminiApiKey || process.env.API_KEY;
+    const apiKey = GEMINI_API_KEY
     if (!apiKey) throw new Error("Vui lòng cấu hình Gemini API Key trong phần Cài đặt hệ thống.");
     return new GoogleGenAI({ apiKey });
 };

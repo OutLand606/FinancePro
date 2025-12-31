@@ -1,17 +1,12 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { Project, Transaction, TransactionType, MaterialEstimation, PriceRecord, Partner, PartnerPerformance, Office } from '../types';
-import { getSettings } from './sheetService';
-import { getAIKnowledge } from './aiKnowledgeService'; // KẾT NỐI BỘ NHỚ TRUNG TÂM
+import { getAIKnowledge } from './aiKnowledgeService';
+import { GEMINI_API_KEY } from "@/constants";
 
 const getAiClient = async () => {
-    // Ưu tiên lấy từ Settings (người dùng nhập), nếu không có thì fallback sang env (cho dev)
-    const settings = await getSettings(); 
-    const apiKey = settings?.geminiApiKey || process.env.API_KEY;
-    
-    // STRICT CHECK: Không cho phép chạy nếu thiếu Key
+    const apiKey = GEMINI_API_KEY
     if (!apiKey) throw new Error("⛔ LỖI CẤU HÌNH: Chưa nhập Gemini API Key.\nVui lòng vào Cấu hình > Google Integration để kích hoạt AI.");
-    
     return new GoogleGenAI({ apiKey });
 };
 

@@ -1,38 +1,12 @@
-import { UserContext, Employee, LoginResponse, AuthTokens } from "../types";
-import { getEmployees } from "./employeeService";
-import { getSystemRoles } from "./systemConfigService";
-import { api, USE_MOCK_BACKEND } from "./api";
-import { MOCK_EMPLOYEES_LIST } from "../constants";
+import { UserContext, LoginResponse } from "../types";
+import { api } from "./api";
 
 const TOKEN_KEY = "access_token";
 const REFRESH_KEY = "refresh_token";
 
-// --- MOCK JWT GENERATOR ---
-// Helper để mã hóa Unicode/Tiếng Việt sang Base64 an toàn
-const utf8_to_b64 = (str: string) => {
-  return window.btoa(unescape(encodeURIComponent(str)));
-};
-
 // Helper để giải mã Base64 sang Unicode/Tiếng Việt
 const b64_to_utf8 = (str: string) => {
   return decodeURIComponent(escape(window.atob(str)));
-};
-
-const generateMockJwt = (user: UserContext): string => {
-  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-
-  // Sử dụng hàm helper utf8_to_b64 thay vì btoa trực tiếp
-  const payloadJson = JSON.stringify({
-    sub: user.id,
-    name: user.name,
-    role: user.roleId,
-    context: user,
-    exp: Date.now() + 86400000,
-  });
-
-  const payload = utf8_to_b64(payloadJson);
-  const signature = "MOCK_SIGNATURE_SECRET";
-  return `${header}.${payload}.${signature}`;
 };
 
 const parseJwt = (token: string): any => {
@@ -51,87 +25,17 @@ export const loginWithEmail = async (
   email: string,
   password?: string
 ): Promise<UserContext> => {
-  if (USE_MOCK_BACKEND) {
-    // --- MOCK BACKEND LOGIC ---
-    // Trong thực tế, đoạn này nằm ở Server Controller
-    await new Promise((resolve) => setTimeout(resolve, 600)); // Network delay
-
-    let employees = await getEmployees();
-
-    // FAILSAFE: Luôn đảm bảo tài khoản ec.thaibinhduong@gmail.com tồn tại và có quyền Admin
-    const DEFAULT_ADMIN_EMAIL = "ec.thaibinhduong@gmail.com";
-    const hasDefaultAdmin = employees.some(
-      (e) => e.email.toLowerCase() === DEFAULT_ADMIN_EMAIL.toLowerCase()
-    );
-
-    if (!hasDefaultAdmin) {
-      console.warn(
-        "⚠️ Warning: Default Admin missing. Injecting for recovery."
-      );
-      // Merge default list so login works
-      employees = [...employees, ...MOCK_EMPLOYEES_LIST];
-    }
-
-    const roles = await getSystemRoles();
-
-    const emp = employees.find(
-      (e) => e.email.toLowerCase() === email.toLowerCase()
-    );
-
-    if (!emp)
-      throw new Error(
-        "Email không tồn tại trong hệ thống. Vui lòng dùng email mặc định (ec.thaibinhduong@gmail.com)."
-      );
-    if (emp.status !== "ACTIVE")
-      throw new Error("Tài khoản nhân viên đã bị khóa.");
-
-    // Password Check (Optional for the default admin for ease of use)
-    if (emp.password && email !== DEFAULT_ADMIN_EMAIL) {
-      if (!password) throw new Error("Vui lòng nhập mật khẩu.");
-      if (emp.password !== password) throw new Error("Mật khẩu không đúng.");
-    }
-
-    const userRole = roles.find((r) => r.id === emp.roleId);
-
-    const userContext: UserContext = {
-      id: emp.id,
-      name: emp.fullName,
-      email: emp.email,
-      roleId: emp.roleId,
-      roleName: userRole ? userRole.name : "Unknown",
-      permissions: userRole ? userRole.permissions : [],
-      managedProjectIds: emp.managedProjectIds || [],
-      isAuthenticated: true,
-      avatarUrl:
-        emp.avatarUrl ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(
-          emp.fullName
-        )}&background=random`,
-    };
-
-    // GENERATE TOKENS
-    const accessToken = generateMockJwt(userContext);
-    const refreshToken = `mock_refresh_${Date.now()}`;
-
-    // SAVE TOKENS (Client Side)
-    localStorage.setItem(TOKEN_KEY, accessToken);
-    localStorage.setItem(REFRESH_KEY, refreshToken);
-
-    return userContext;
-  } else {
-    console.log("backend run");
-    // --- REAL API CALL ---
-    const res = await api.post<LoginResponse>("/auth/login", {
-      email,
-      password,
-    });
-    if (res.success && res.data) {
-      localStorage.setItem(TOKEN_KEY, res.data.tokens.accessToken);
-      localStorage.setItem(REFRESH_KEY, res.data.tokens.refreshToken);
-      return res.data.user;
-    }
-    throw new Error(res.message || "Login failed");
+  // --- REAL API CALL ---
+  const res = await api.post<LoginResponse>("/auth/login", {
+    email,
+    password,
+  });
+  if (res.success && res.data) {
+    localStorage.setItem(TOKEN_KEY, res.data.tokens.accessToken);
+    localStorage.setItem(REFRESH_KEY, res.data.tokens.refreshToken);
+    return res.data.user;
   }
+  throw new Error(res.message || "Login failed");
 };
 
 export const logout = () => {
@@ -161,7 +65,7 @@ export const checkSession = (): UserContext | null => {
       logout();
       return null;
     }
-    
+
     if (!localStorage.getItem(TOKEN_KEY)) {
       localStorage.setItem(TOKEN_KEY, token);
     }

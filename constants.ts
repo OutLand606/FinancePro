@@ -122,20 +122,4 @@ export const INITIAL_ASSETS: Asset[] = [
 
 export const INITIAL_INVENTORY: InventoryItem[] = [];
 
-// Re-declare for other modules
-export const MOCK_EMPLOYEES_LIST: Employee[] = [
-    { 
-        id: 'emp_owner', 
-        code: 'ADMIN-01', 
-        fullName: 'Admin Thái Bình Dương', 
-        email: 'ec.thaibinhduong@gmail.com', 
-        roleId: 'role_admin', 
-        status: 'ACTIVE', 
-        managedProjectIds: ['ALL'], 
-        salaryTemplateId: 'tpl_office_basic', 
-        baseSalary: 15000000, 
-        position: 'Giám đốc Điều hành', 
-        department: 'Ban quản trị', 
-        createdAt: new Date().toISOString() 
-    }
-];
+export const GEMINI_API_KEY = 'AIzaSyBBgth-NCxKrggnbzgD1kWGFGvJYmayNc4'
