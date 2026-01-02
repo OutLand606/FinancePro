@@ -68,9 +68,6 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, transactions, projec
   const checkAccess = (moduleName: string): boolean => {
       const perms = currentUser?.permissions || [];
 
-      console.log('moduleNamemoduleName',moduleName)
-      console.log('perms',perms)
-
       switch (moduleName) {
           case 'PROJECTS': // Công Trình
           return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN'].includes(p));
@@ -95,6 +92,12 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, transactions, projec
       }
   };
 
+  const perms = currentUser?.permissions || [];
+  const canViewMoney = currentUser?.role === 'DIRECTOR' || 
+                       perms.some(p => ['SYS_ADMIN', 'OFFICE_VIEW', 'PROJECT_VIEW_OWN'].includes(p));
+  const canViewTax = currentUser?.role === 'DIRECTOR' || perms.includes('SYS_ADMIN');
+  const formatMoney = (amount: number) => canViewMoney ? amount.toLocaleString() + ' ₫' : '******* ₫';
+
   return (
     <div className="space-y-10 animate-in fade-in pb-20 relative">
       {/* 1. HEADER */}
@@ -113,21 +116,21 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, transactions, projec
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
             title="Thực thu (Cash-in)" 
-            value={`${(stats.totalRevenue / 1000000).toLocaleString()} Tr`} 
+            value={canViewMoney ? `${(stats.totalRevenue / 1000000).toLocaleString()} Tr` : '*******'} 
             icon={ArrowDownCircle} 
             colorClass="bg-emerald-50 text-emerald-600" 
             subText="Dòng tiền thực tế"
         />
         <StatCard 
             title="Thực chi (Cash-out)" 
-            value={`${(stats.totalExpense / 1000000).toLocaleString()} Tr`} 
+            value={canViewMoney ? `${(stats.totalExpense / 1000000).toLocaleString()} Tr` : '*******'} 
             icon={ArrowUpCircle} 
             colorClass="bg-rose-50 text-rose-600" 
             subText="Chi phí hoạt động"
         />
         <StatCard 
             title="Lợi nhuận ròng" 
-            value={`${(stats.netProfit / 1000000).toLocaleString()} Tr`} 
+            value={canViewMoney ? `${(stats.netProfit / 1000000).toLocaleString()} Tr` : '*******'} 
             icon={DollarSign} 
             colorClass="bg-indigo-50 text-indigo-600" 
             subText="Thu trừ Chi"
@@ -159,7 +162,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, transactions, projec
                           </div>
                           <p className="text-sm font-bold text-slate-700 mb-1 truncate max-w-[150px]" title={acc.accountName}>{acc.accountName}</p>
                           <p className={`text-xl font-black ${acc.balance < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
-                              {acc.balance.toLocaleString()} ₫
+                            {formatMoney(acc.balance)} {/* Dùng hàm này thay cho toLocaleString() */}
                           </p>
                       </div>
                       <div className={`p-3 rounded-2xl ${acc.type === AccountType.CASH ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
