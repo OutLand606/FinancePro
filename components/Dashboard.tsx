@@ -66,27 +66,28 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, transactions, projec
   );
 
   const checkAccess = (moduleName: string): boolean => {
+      if (currentUser?.permissions?.includes('SYS_ADMIN') ) return true;
       const perms = currentUser?.permissions || [];
 
       switch (moduleName) {
           case 'PROJECTS': // Công Trình
-          return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN'].includes(p));
+              return perms.some(p => ['PROJECT_VIEW_ALL', 'PROJECT_VIEW_OWN'].includes(p));
           case 'FINANCE': // Sổ Thu Chi
-              return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN', 'OFFICE_VIEW'].includes(p));
+              return perms.some(p => ['TRANS_CREATE', 'TRANS_VIEW_ALL', 'TRANS_APPROVE', 'TRANS_PAY'].includes(p));
           case 'CONTRACTS': // Hợp Đồng 
-              return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN', 'SALARY_VIEW_SELF', 'OFFICE_VIEW'].includes(p));
+              return perms.some(p => [].includes(p));
           case 'CUSTOMERS': // Khách Hàng
-              return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN', 'SALARY_VIEW_SELF', 'OFFICE_VIEW'].includes(p));
+              return perms.some(p => [].includes(p));
           case 'SUPPLIERS': // Thị Trường
-              return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN', 'SALARY_VIEW_SELF', 'OFFICE_VIEW'].includes(p));
+              return perms.some(p => ['PROJECT_VIEW_ALL', 'TRANS_CREATE'].includes(p));
           case 'OFFICE': // Office & Store
-              return perms.some(p => ['SYS_ADMIN',].includes(p));
+              return perms.some(p => ['OFFICE_VIEW', 'OFFICE_MANAGE'].includes(p));
           case 'HR': // Nhân sự & Lương
-              return perms.some(p => ['SYS_ADMIN'].includes(p));
+              return perms.some(p => [].includes(p));
           case 'TAX': // Thuế & KPI
-              return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN','SALARY_VIEW_SELF','OFFICE_VIEW'].includes(p));
-          case 'AI': // Thuế & KPI
-              return perms.some(p => ['SYS_ADMIN'].includes(p));
+              return perms.some(p => [ 'PROJECT_VIEW_OWN','SALARY_VIEW_SELF','OFFICE_VIEW'].includes(p));
+          case 'AI': // AI
+              return perms.some(p => [].includes(p));
           default:
               return false;
       }

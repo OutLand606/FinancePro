@@ -103,8 +103,12 @@ const TransactionList: React.FC<TransactionListProps> = ({
 
   const filteredTransactions = useMemo(() => {
     let base = transactions;
-    if (activeSubTab === 'APPROVAL') base = transactions.filter(t => t.status === TransactionStatus.SUBMITTED);
-    else if (activeSubTab === 'UNPAID') base = transactions.filter(t => t.status === TransactionStatus.APPROVED && t.type === TransactionType.EXPENSE);
+    const perms = currentUser?.permissions || [];
+    const canViewAll = perms.some(p => ['SYS_ADMIN', 'TRANS_VIEW_ALL'].includes(p));
+    
+    if (!canViewAll) {
+        base = base.filter(t => t.requesterId === currentUser.id);
+    }
 
     if (timeFilterMode !== 'ALL') {
         base = base.filter(t => {
@@ -129,13 +133,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
     }).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, searchTerm, projects, partners, activeSubTab, typeFilter, timeFilterMode, selectedYear, selectedMonth, selectedQuarter]);
 
-  // --- STATS CALCULATION ---
-  const stats = useMemo(() => {
-      const paidIncome = filteredTransactions.filter(t => t.type === TransactionType.INCOME && t.status === TransactionStatus.PAID).reduce((s, t) => s + t.amount, 0);
-      const paidExpense = filteredTransactions.filter(t => t.type === TransactionType.EXPENSE && t.status === TransactionStatus.PAID).reduce((s, t) => s + t.amount, 0);
-      const pendingExpense = filteredTransactions.filter(t => t.type === TransactionType.EXPENSE && (t.status === TransactionStatus.SUBMITTED || t.status === TransactionStatus.APPROVED)).reduce((s, t) => s + t.amount, 0);
-      return { paidIncome, paidExpense, pendingExpense };
-  }, [filteredTransactions]);
+
 
   // --- ACCOUNT BALANCES (Live calculation including INITIAL BALANCE) ---
   const accountBalances = useMemo(() => {
@@ -251,6 +249,69 @@ const TransactionList: React.FC<TransactionListProps> = ({
       alert(`Đã nhập ${importedTrans.length} giao dịch từ Google Form.`);
   };
 
+  const canCreateTransactionCreater = useMemo(() => {
+      const perms = currentUser?.permissions || [];
+      if (perms.includes('SYS_ADMIN')) return true;
+      return perms.some(p => ['TRANS_CREATE'].includes(p));
+  }, [currentUser]);
+
+  const canCreateTransactionApprove = useMemo(() => {
+      const perms = currentUser?.permissions || [];
+      if (perms.includes('SYS_ADMIN')) return true;
+      return perms.some(p => ['TRANS_APPROVE'].includes(p));
+  }, [currentUser]);
+
+  const canCreateTransactionPay = useMemo(() => {
+      const perms = currentUser?.permissions || [];
+      if (perms.includes('SYS_ADMIN')) return true;
+      return perms.some(p => ['TRANS_PAY'].includes(p));
+  }, [currentUser]);
+
+  const accessibleTransactions = useMemo(() => {
+      const perms = currentUser?.permissions || [];
+      
+      // Check quyền xem tất cả
+      const canViewAll = perms.some(p => ['SYS_ADMIN', 'TRANS_VIEW_ALL'].includes(p));
+
+      if (canViewAll) {
+          return transactions;
+      }
+      return transactions.filter(t => t.requesterId === currentUser.id);
+  }, [transactions, currentUser]);
+
+    // --- STATS CALCULATION ---
+  const stats = useMemo(() => {
+      // Stats cần tuân theo bộ lọc thời gian (Tháng/Quý/Năm) để số liệu có ý nghĩa
+      let sourceData = accessibleTransactions;
+
+      if (timeFilterMode !== 'ALL') {
+          sourceData = sourceData.filter(t => {
+              if (!t.date) return false;
+              const d = new Date(t.date);
+              const y = d.getFullYear();
+              const m = d.getMonth() + 1;
+              if (y !== selectedYear) return false;
+              if (timeFilterMode === 'MONTH') return m === selectedMonth;
+              if (timeFilterMode === 'QUARTER') return Math.ceil(m / 3) === selectedQuarter;
+              return true;
+          });
+      }
+
+      const paidIncome = sourceData
+          .filter(t => t.type === TransactionType.INCOME && t.status === TransactionStatus.PAID)
+          .reduce((s, t) => s + t.amount, 0);
+
+      const paidExpense = sourceData
+          .filter(t => t.type === TransactionType.EXPENSE && t.status === TransactionStatus.PAID)
+          .reduce((s, t) => s + t.amount, 0);
+
+      const pendingExpense = sourceData
+          .filter(t => t.type === TransactionType.EXPENSE && (t.status === TransactionStatus.SUBMITTED || t.status === TransactionStatus.APPROVED))
+          .reduce((s, t) => s + t.amount, 0);
+
+      return { paidIncome, paidExpense, pendingExpense };
+  }, [accessibleTransactions, timeFilterMode, selectedYear, selectedMonth, selectedQuarter]);
+
   return (
     <div className="space-y-6 pb-20 animate-in fade-in duration-300 relative">
       
@@ -267,8 +328,29 @@ const TransactionList: React.FC<TransactionListProps> = ({
               <button onClick={() => setShowGoogleFormImport(true)} className="flex items-center px-4 py-3 bg-green-50 text-green-700 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-green-100 transition-all border border-green-200">
                   <FileSpreadsheet size={16} className="mr-2"/> Nhập từ Google Form
               </button>
-              <button onClick={() => setFormConfig({ isOpen: true, type: TransactionType.INCOME })} className="flex items-center px-6 py-3 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"><ArrowDownLeft size={18} className="mr-2" /> Lập Phiếu Thu</button>
-              <button onClick={() => setFormConfig({ isOpen: true, type: TransactionType.EXPENSE })} className="flex items-center px-6 py-3 bg-rose-600 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-rose-200 hover:bg-rose-700 transition-all active:scale-95"><ArrowUpRight size={18} className="mr-2" /> Lập Phiếu Chi</button>
+              <button 
+                disabled={!canCreateTransactionCreater}
+                onClick={() => setFormConfig({ isOpen: true, type: TransactionType.INCOME })} 
+                className={`flex items-center px-6 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all 
+                    ${canCreateTransactionCreater 
+                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95' 
+                        : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-70 shadow-none'
+                    }`}
+              >
+                  <ArrowDownLeft size={18} className="mr-2" /> Lập Phiếu Thu
+              </button>
+              
+              <button 
+                disabled={!canCreateTransactionCreater}
+                onClick={() => setFormConfig({ isOpen: true, type: TransactionType.EXPENSE })} 
+                className={`flex items-center px-6 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all 
+                    ${canCreateTransactionCreater 
+                        ? 'bg-rose-600 text-white shadow-lg shadow-rose-200 hover:bg-rose-700 active:scale-95' 
+                        : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-70 shadow-none'
+                    }`}
+              >
+                  <ArrowUpRight size={18} className="mr-2" /> Lập Phiếu Chi
+              </button>
           </div>
       </div>
 
@@ -422,12 +504,29 @@ const TransactionList: React.FC<TransactionListProps> = ({
                                       <Printer size={16}/>
                                   </button>
                                   
-                                  {t.status === TransactionStatus.SUBMITTED && (
-                                      <>
-                                          <button onClick={() => handleApprove(t)} className="p-1.5 bg-green-50 text-green-600 rounded hover:bg-green-100" title="Duyệt"><CheckCircle size={16}/></button>
-                                          <button onClick={() => setRejectModalOpen(t)} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100" title="Từ chối"><X size={16}/></button>
-                                      </>
-                                  )}
+                                 {t.status === TransactionStatus.SUBMITTED && canCreateTransactionApprove && (
+                                <>
+                                    <button 
+                                        onClick={() => handleApprove(t)} 
+                                        className="p-1.5 bg-green-50 text-green-600 rounded hover:bg-green-100 transition-colors" 
+                                        title="Duyệt"
+                                    >
+                                        <CheckCircle size={16}/>
+                                    </button>
+                                    <button 
+                                        onClick={() => setRejectModalOpen(t)} 
+                                        className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors" 
+                                        title="Từ chối"
+                                    >
+                                        <X size={16}/>
+                                    </button>
+                                </>
+                            )}
+                            
+                            {/* Nếu là người tạo phiếu nhưng không có quyền duyệt, có thể cho phép xoá/sửa khi đang chờ duyệt (Tuỳ chọn) */}
+                            {t.status === TransactionStatus.SUBMITTED && !canCreateTransactionApprove && t.requesterId === currentUser.id && (
+                                <span className="text-[10px] text-orange-400 font-bold p-1.5 cursor-default">Đang chờ duyệt...</span>
+                            )}
                                   
                                   {/* CONFIRM PAYMENT (EXPENSE) */}
                                   {t.status === TransactionStatus.APPROVED && t.type === TransactionType.EXPENSE && (
@@ -435,7 +534,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
                                   )}
 
                                   {/* CONFIRM INCOME (NEW FEATURE) */}
-                                  {t.type === TransactionType.INCOME && t.status !== TransactionStatus.PAID && (
+                                  {t.type === TransactionType.INCOME && t.status !== TransactionStatus.PAID && canCreateTransactionPay &&(
                                       <button onClick={() => initiateCollection(t)} className="p-1.5 bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100 font-bold text-[10px] uppercase w-fit px-2 flex items-center">
                                           <CheckCircle size={14} className="mr-1"/> Xác nhận Thu
                                       </button>
