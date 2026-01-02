@@ -1,14 +1,12 @@
 import { ModuleConfig, FieldConfig, GlobalConfig, FeatureConfig, SystemRole } from '../types.ts';
-import { DEFAULT_FEATURES, INITIAL_SYSTEM_ROLES } from '../constants.ts';
+import { DEFAULT_FEATURES } from '../constants.ts';
 import { api } from './api';
 
 // --- SYSTEM ROLES (Lưu trong bảng 'system_roles') ---
 
 export const getSystemRoles = async (): Promise<SystemRole[]> => {
     const res = await api.get<SystemRole[]>('/system_roles');
-    // Nếu chưa có (lần đầu), trả về INITIAL_SYSTEM_ROLES để UI không bị trống
-    // Tuy nhiên, tốt nhất là seedData backend đã có sẵn rồi.
-    return res.success && res.data ? res.data : INITIAL_SYSTEM_ROLES;
+    return res.success ? res.data : [] ;
 };
 
 export const saveSystemRole = async (role: SystemRole): Promise<void> => {

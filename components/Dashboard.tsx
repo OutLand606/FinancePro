@@ -7,16 +7,17 @@ import {
 } from 'lucide-react';
 import { Transaction, Project, CashAccount, TransactionType, TransactionStatus, AccountType } from '../types';
 import { ReportService } from '../services/reportService'; 
-import AIAssistantWidget from './AIAssistantWidget'; // NEW IMPORT
+import AIAssistantWidget from './AIAssistantWidget';
 
 interface DashboardProps {
+  currentUser: any;
   transactions: Transaction[];
   projects: Project[];
   accounts: CashAccount[];
   onNavigate?: (tab: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ transactions, projects, accounts, onNavigate }) => {
+const Dashboard: React.FC<DashboardProps> = ({ currentUser, transactions, projects, accounts, onNavigate }) => {
   // Use Service for Logic
   const stats = useMemo(() => ReportService.calculateDashboardStats(transactions, projects), [transactions, projects]);
   const recentActivity = useMemo(() => ReportService.getRecentActivity(transactions, 6), [transactions]);
@@ -63,6 +64,36 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, projects, accounts,
           <div className={`absolute bottom-0 left-0 w-full h-1 ${color.bar} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
       </button>
   );
+
+  const checkAccess = (moduleName: string): boolean => {
+      const perms = currentUser?.permissions || [];
+
+      console.log('moduleNamemoduleName',moduleName)
+      console.log('perms',perms)
+
+      switch (moduleName) {
+          case 'PROJECTS': // Công Trình
+          return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN'].includes(p));
+          case 'FINANCE': // Sổ Thu Chi
+              return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN', 'OFFICE_VIEW'].includes(p));
+          case 'CONTRACTS': // Hợp Đồng 
+              return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN', 'SALARY_VIEW_SELF', 'OFFICE_VIEW'].includes(p));
+          case 'CUSTOMERS': // Khách Hàng
+              return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN', 'SALARY_VIEW_SELF', 'OFFICE_VIEW'].includes(p));
+          case 'SUPPLIERS': // Thị Trường
+              return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN', 'SALARY_VIEW_SELF', 'OFFICE_VIEW'].includes(p));
+          case 'OFFICE': // Office & Store
+              return perms.some(p => ['SYS_ADMIN',].includes(p));
+          case 'HR': // Nhân sự & Lương
+              return perms.some(p => ['SYS_ADMIN'].includes(p));
+          case 'TAX': // Thuế & KPI
+              return perms.some(p => ['SYS_ADMIN', 'PROJECT_VIEW_OWN','SALARY_VIEW_SELF','OFFICE_VIEW'].includes(p));
+          case 'AI': // Thuế & KPI
+              return perms.some(p => ['SYS_ADMIN'].includes(p));
+          default:
+              return false;
+      }
+  };
 
   return (
     <div className="space-y-10 animate-in fade-in pb-20 relative">
@@ -145,23 +176,51 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, projects, accounts,
       </div>
 
       {/* 4. MODULE NAVIGATION */}
-      <div>
+     <div>
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center">
               <span className="w-2 h-2 rounded-full bg-indigo-600 mr-2"></span>
               Truy cập nhanh phân hệ
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              <ShortcutItem label="Sổ Thu Chi" description="Quản lý dòng tiền" icon={Wallet} color={{bg:'bg-blue-50', text:'text-blue-600', bar:'bg-blue-500'}} onClick={() => onNavigate?.('transactions')} />
-              <ShortcutItem label="Công Trình" description="Dự án & Tiến độ" icon={Building2} color={{bg:'bg-orange-50', text:'text-orange-600', bar:'bg-orange-500'}} onClick={() => onNavigate?.('projects')} />
-              <ShortcutItem label="Hợp Đồng" description="Pháp lý & Thanh toán" icon={FileText} color={{bg:'bg-teal-50', text:'text-teal-600', bar:'bg-teal-500'}} onClick={() => onNavigate?.('contracts')} />
-              <ShortcutItem label="Khách Hàng" description="Chủ đầu tư & Công nợ" icon={Contact} color={{bg:'bg-cyan-50', text:'text-cyan-600', bar:'bg-cyan-500'}} onClick={() => onNavigate?.('customers')} />
-              <ShortcutItem label="Office & Store" description="Văn phòng & Kho" icon={Briefcase} color={{bg:'bg-purple-50', text:'text-purple-600', bar:'bg-purple-500'}} onClick={() => onNavigate?.('office')} />
-              <ShortcutItem label="Thị Trường" description="NCC & Giá vật tư" icon={ShoppingBag} color={{bg:'bg-yellow-50', text:'text-yellow-600', bar:'bg-yellow-500'}} onClick={() => onNavigate?.('suppliers')} />
-              <ShortcutItem label="Nhân Sự & Lương" description="Cham công, KPI, Lương" icon={Users} color={{bg:'bg-pink-50', text:'text-pink-600', bar:'bg-pink-500'}} onClick={() => onNavigate?.('hr-group')} />
-              <ShortcutItem label="Thuế & KPI" description="Báo cáo thuế, VAT" icon={PieChart} color={{bg:'bg-red-50', text:'text-red-600', bar:'bg-red-500'}} onClick={() => onNavigate?.('tax-kpi')} />
-              <ShortcutItem label="AI Analyst" description="Trợ lý ảo phân tích" icon={Bot} color={{bg:'bg-indigo-50', text:'text-indigo-600', bar:'bg-indigo-500'}} onClick={() => onNavigate?.('analysis')} />
+              
+              {checkAccess('FINANCE') && (
+                 <ShortcutItem label="Sổ Thu Chi" description="Quản lý dòng tiền" icon={Wallet} color={{bg:'bg-blue-50', text:'text-blue-600', bar:'bg-blue-500'}} onClick={() => onNavigate?.('transactions')} />
+              )}
+              
+              {checkAccess('PROJECTS') && (
+                 <ShortcutItem label="Công Trình" description="Dự án & Tiến độ" icon={Building2} color={{bg:'bg-orange-50', text:'text-orange-600', bar:'bg-orange-500'}} onClick={() => onNavigate?.('projects')} />
+              )}
+              
+              {checkAccess('CONTRACTS') && (
+                 <ShortcutItem label="Hợp Đồng" description="Pháp lý & Thanh toán" icon={FileText} color={{bg:'bg-teal-50', text:'text-teal-600', bar:'bg-teal-500'}} onClick={() => onNavigate?.('contracts')} />
+              )}
+              
+              {checkAccess('CUSTOMERS') && (
+                 <ShortcutItem label="Khách Hàng" description="Chủ đầu tư & Công nợ" icon={Contact} color={{bg:'bg-cyan-50', text:'text-cyan-600', bar:'bg-cyan-500'}} onClick={() => onNavigate?.('customers')} />
+              )}
+              
+              {checkAccess('SUPPLIERS') && (
+                 <ShortcutItem label="Thị Trường" description="NCC & Giá vật tư" icon={ShoppingBag} color={{bg:'bg-yellow-50', text:'text-yellow-600', bar:'bg-yellow-500'}} onClick={() => onNavigate?.('suppliers')} />
+              )}
+
+              {checkAccess('OFFICE') && (
+                  <ShortcutItem label="Office & Store" description="Văn phòng & Kho" icon={Briefcase} color={{bg:'bg-purple-50', text:'text-purple-600', bar:'bg-purple-500'}} onClick={() => onNavigate?.('office')} />
+              )}
+
+              {checkAccess('HR') && (
+                  <ShortcutItem label="Nhân Sự & Lương" description="Chấm công, KPI, Lương" icon={Users} color={{bg:'bg-pink-50', text:'text-pink-600', bar:'bg-pink-500'}} onClick={() => onNavigate?.('hr-group')} />
+              )}
+
+              {/* Thuế & KPI, AI Analyst: Chỉ dành cho Admin */}
+              {checkAccess('TAX') && (
+                      <ShortcutItem label="Thuế & KPI" description="Báo cáo thuế, VAT" icon={PieChart} color={{bg:'bg-red-50', text:'text-red-600', bar:'bg-red-500'}} onClick={() => onNavigate?.('tax-kpi')} />
+              )}
+              {checkAccess('AI') && (
+                  <ShortcutItem label="AI Analyst" description="Trợ lý ảo phân tích" icon={Bot} color={{bg:'bg-indigo-50', text:'text-indigo-600', bar:'bg-indigo-500'}} onClick={() => onNavigate?.('analysis')} />
+              )}
           </div>
       </div>
+
 
       {/* 5. ACTIVITY & ALERTS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
