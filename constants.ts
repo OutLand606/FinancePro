@@ -47,19 +47,23 @@ export const INITIAL_FIELD_CONFIGS: FieldConfig[] = [];
 export const AVAILABLE_PERMISSIONS = [
     { code: 'SYS_ADMIN', label: 'Quản trị hệ thống (Full)', group: 'Hệ thống' },
     { code: 'SYS_CONFIG_EDIT', label: 'Cấu hình hệ thống', group: 'Hệ thống' },
+
     { code: 'PROJECT_VIEW_ALL', label: 'Xem tất cả dự án', group: 'Dự án' },
     { code: 'PROJECT_VIEW_OWN', label: 'Xem dự án được giao', group: 'Dự án' },
     { code: 'PROJECT_CREATE', label: 'Tạo dự án mới', group: 'Dự án' },
     { code: 'PROJECT_EDIT', label: 'Chỉnh sửa dự án', group: 'Dự án' },
+
     { code: 'TRANS_CREATE', label: 'Tạo phiếu thu/chi', group: 'Thu Chi' },
     { code: 'TRANS_APPROVE', label: 'Duyệt phiếu', group: 'Thu Chi' },
     { code: 'TRANS_PAY', label: 'Xác nhận thanh toán', group: 'Thu Chi' },
     { code: 'TRANS_VIEW_ALL', label: 'Xem tất cả phiếu', group: 'Thu Chi' },
+
     { code: 'HR_VIEW_ALL', label: 'Xem danh sách nhân sự', group: 'Nhân sự' },
     { code: 'HR_MANAGE', label: 'Quản lý nhân sự (Sửa/Xóa)', group: 'Nhân sự' },
     { code: 'SALARY_VIEW_SELF', label: 'Xem lương cá nhân', group: 'Nhân sự' },
     { code: 'SALARY_MANAGE', label: 'Tính & Duyệt lương', group: 'Nhân sự' },
     { code: 'EMPLOYEE_MANAGE', label: 'Quản lý hồ sơ nhân viên', group: 'Nhân sự' },
+    
     // NEW PERMISSIONS FOR OFFICE & ASSETS
     { code: 'OFFICE_VIEW', label: 'Xem danh sách Văn phòng/Kho', group: 'Hành chính' },
     { code: 'OFFICE_MANAGE', label: 'Quản lý Văn phòng & Tài sản', group: 'Hành chính' }

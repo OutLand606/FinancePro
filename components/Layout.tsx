@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import { Menu, X, LogOut, ChevronDown } from "lucide-react";
-import { isModuleEnabled } from "../services/systemConfigService.ts";
-import { hasPermission } from "../services/authService.ts";
-import { UserContext } from "../types.ts";
-import { APP_MODULES } from "../services/moduleRegistry.tsx";
+import { isModuleEnabled } from "../services/systemConfigService";
+import { hasPermission } from "../services/authService";
+import { UserContext } from "../types";
+import { APP_MODULES } from "../services/moduleRegistry";
 
 interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   currentUser: UserContext;
-  onLogout: () => void; // ADDED PROP
+  onLogout: () => void; 
 }
 
 const Layout: React.FC<LayoutProps> = ({
@@ -23,16 +23,51 @@ const Layout: React.FC<LayoutProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["hr"]);
 
+  // --- LOGIC PHÂN QUYỀN SIDEBAR (TƯƠNG TỰ DASHBOARD) ---
+  const checkSidebarAccess = (moduleKey: string): boolean => {
+      if (currentUser?.permissions?.includes('SYS_ADMIN') ) return true;
+      const perms = currentUser?.permissions || [];
+
+      console.log('perms',perms)
+
+      switch (moduleKey) {
+          case 'dashboard': // Ai cũng vào được Dashboard
+              return true;
+          case 'projects': // Quản lý Công Trình
+              return perms.some(p => ['PROJECT_VIEW_ALL', 'PROJECT_VIEW_OWN'].includes(p));
+          case 'transactions': // Sổ Thu Chi
+              return perms.some(p => ['TRANS_CREATE', 'TRANS_VIEW_ALL', 'TRANS_APPROVE', 'TRANS_PAY'].includes(p));
+          case 'contracts': // Hợp đồng
+          case 'customers': // Khách hàng
+          case 'suppliers': // Thị trường
+              return perms.some(p => ['PROJECT_VIEW_ALL', 'TRANS_CREATE'].includes(p));
+          case 'office': // Office & Store
+              return perms.includes('OFFICE_VIEW') || perms.includes('OFFICE_MANAGE');
+          case 'hr-group': // Nhóm Nhân sự (Cha)
+              return true
+          case 'employees': // Nhân viên
+          case 'timesheets': // Chấm công
+          case 'payroll': // Bảng lương
+          case 'kpi': // KPI
+              return perms.some(p => ['HR_VIEW_ALL', 'HR_MANAGE', 'EMPLOYEE_MANAGE', 'SALARY_MANAGE'].includes(p));
+          case 'my-salary': // Lương của tôi
+              return true; 
+          case 'tax-kpi': // Thuế
+          case 'analysis': // AI
+          case 'settings': // Cấu hình
+              return perms.some(p => ['SYS_ADMIN', 'SYS_CONFIG_EDIT'].includes(p));
+          default:
+              return false;
+      }
+  };
+
   const canShowItem = (item: any) => {
-    const perms = currentUser.permissions || [];
-
-    if (perms.includes("SYS_ADMIN")) return true;
-
+    console.log('item.keyitem.key',item.key)
+    // 1. Check System Config (Module có được bật không?)
     if (!isModuleEnabled(item.key) && item.key !== "settings") return false;
-    const requiredPerm = item.permission || item.requiredPermission;
-
-    if (requiredPerm && !hasPermission(currentUser, requiredPerm)) return false;
-    return true;
+    
+    // 2. Check User Permission (Logic mới)
+    return checkSidebarAccess(item.key);
   };
 
   const NavButton: React.FC<{ item: any; isSub?: boolean }> = ({
@@ -40,6 +75,7 @@ const Layout: React.FC<LayoutProps> = ({
     isSub = false,
   }) => {
     if (!canShowItem(item)) return null;
+    
     const Icon = item.icon;
     const isActive = activeTab === item.key;
 
@@ -92,11 +128,17 @@ const Layout: React.FC<LayoutProps> = ({
             // Hide Settings from the main list (we will render it at the bottom)
             if (module.key === "settings") return null;
 
+            // Xử lý logic hiển thị Menu Cha (Group)
             if (module.subItems) {
-              const hasVisibleSubItems = module.subItems.some((sub) =>
-                canShowItem(sub)
-              );
-              if (!hasVisibleSubItems) return null;
+              // Lọc ra các sub-item mà user có quyền xem
+              const visibleSubItems = module.subItems.filter(sub => canShowItem(sub));
+              
+              // Nếu không có sub-item nào được xem -> Ẩn luôn menu cha
+              if (visibleSubItems.length === 0) return null;
+
+              // Check quyền xem menu cha (để chắc chắn)
+              if (!canShowItem(module)) return null;
+
               const isExpanded = expandedGroups.includes(module.key);
               return (
                 <div key={module.key} className="mb-1">
@@ -122,7 +164,7 @@ const Layout: React.FC<LayoutProps> = ({
                   </button>
                   {isExpanded && (
                     <div className="mt-1">
-                      {module.subItems.map((sub) => (
+                      {visibleSubItems.map((sub) => (
                         <NavButton key={sub.key} item={sub} isSub={true} />
                       ))}
                     </div>
@@ -134,8 +176,8 @@ const Layout: React.FC<LayoutProps> = ({
           })}
         </nav>
 
-        {/* Render Settings at the bottom */}
-        {settingsModule && (
+        {/* Render Settings at the bottom (Chỉ hiện nếu có quyền) */}
+        {settingsModule && canShowItem(settingsModule) && (
           <div className="px-3 pt-2 border-t border-slate-800 mt-auto">
             <NavButton item={settingsModule} />
           </div>

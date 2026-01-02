@@ -228,6 +228,20 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ projects, priceRecords,
       );
   };
 
+  const canModifyProjectsCreater = useMemo(() => {
+      const perms = currentUser?.permissions || [];
+      if (perms.includes('SYS_ADMIN')) return true
+      return perms.some(p => ['PROJECT_CREATE'].includes(p));
+  }, [currentUser]);
+
+  const canModifyProjectsEdit = useMemo(() => {
+      const perms = currentUser?.permissions || [];
+      if (perms.includes('SYS_ADMIN')) return true
+      return perms.some(p => ['PROJECT_EDIT'].includes(p));
+  }, [currentUser]);
+
+
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300 pb-20">
       
@@ -245,11 +259,17 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ projects, priceRecords,
                   </p>
               </div>
           </div>
-          <button 
+         <button 
+            disabled={!canModifyProjectsCreater} // Disable nếu không có quyền
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center px-8 py-3.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-indigo-200 transition-all active:scale-95 group"
+            className={`flex items-center px-8 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl transition-all group
+                ${canModifyProjectsCreater 
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200 active:scale-95 cursor-pointer' 
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-70 shadow-none'
+                }
+            `}
           >
-              <Plus size={18} className="mr-2 group-hover:rotate-90 transition-transform"/> Tạo Dự Án Mới
+              <Plus size={18} className={`mr-2 ${canModifyProjectsCreater ? 'group-hover:rotate-90' : ''} transition-transform`}/> Tạo Dự Án Mới
           </button>
       </div>
 
@@ -350,13 +370,20 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ projects, priceRecords,
               {filteredProjects.map((p) => (
                   <div 
                       key={p.id} 
-                      onClick={() => handleOpenDetail(p)}
-                      className={`bg-white rounded-[32px] border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-6 flex flex-col cursor-pointer group relative overflow-hidden ${
-                          p.status === 'COMPLETED' ? 'border-emerald-100 bg-emerald-50/10' : 
-                          p.status === 'SUSPENDED' ? 'border-amber-200 bg-amber-50/10' : 
-                          p.status === 'CANCELLED' ? 'border-slate-200 bg-slate-50 opacity-70' :
-                          'border-indigo-100'
-                      }`}
+                     onClick={() => {
+                          if (canModifyProjectsEdit) handleOpenDetail(p);
+                      }}
+                      className={`bg-white rounded-[32px] border shadow-sm p-6 flex flex-col relative overflow-hidden transition-all duration-300
+                          ${canModifyProjectsEdit 
+                              ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 group' 
+                              : 'cursor-default opacity-90' // Không cho click
+                          }
+                          ${
+                              p.status === 'COMPLETED' ? 'border-emerald-100 bg-emerald-50/10' : 
+                              p.status === 'SUSPENDED' ? 'border-amber-200 bg-amber-50/10' : 
+                              p.status === 'CANCELLED' ? 'border-slate-200 bg-slate-50 opacity-70' :
+                              'border-indigo-100'
+                          }`}
                   >
                       {/* Status Tag Badge */}
                       <div className="absolute top-0 right-0">
