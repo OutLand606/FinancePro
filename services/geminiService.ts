@@ -1,23 +1,19 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { Project, Transaction, TransactionType, MaterialEstimation, PriceRecord, Partner, PartnerPerformance, Office } from '../types';
-import { getSettings } from './sheetService';
-import { getAIKnowledge } from './aiKnowledgeService'; // KẾT NỐI BỘ NHỚ TRUNG TÂM
+import { getAIKnowledge } from './aiKnowledgeService';
+import { GEMINI_API_KEY } from "@/constants";
 
-const getAiClient = () => {
-    // Ưu tiên lấy từ Settings (người dùng nhập), nếu không có thì fallback sang env (cho dev)
-    const apiKey = getSettings().geminiApiKey || process.env.API_KEY;
-    
-    // STRICT CHECK: Không cho phép chạy nếu thiếu Key
+const getAiClient = async () => {
+    const apiKey = GEMINI_API_KEY
     if (!apiKey) throw new Error("⛔ LỖI CẤU HÌNH: Chưa nhập Gemini API Key.\nVui lòng vào Cấu hình > Google Integration để kích hoạt AI.");
-    
     return new GoogleGenAI({ apiKey });
 };
 
 // --- SYSTEM CHECK: Dùng để test kết nối ở màn hình Cấu hình ---
 export const testGeminiConnection = async (): Promise<boolean> => {
     try {
-        const ai = getAiClient();
+        const ai = await getAiClient();
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: "Ping. Reply with 'Pong' only.",
@@ -33,7 +29,7 @@ export const analyzeProjectFinances = async (
   project: Project,
   transactions: Transaction[]
 ): Promise<string> => {
-  const ai = getAiClient();
+  const ai = await getAiClient();
   const knowledge = getAIKnowledge(); // LOAD TRÍ NHỚ ĐÃ HỌC TỪ CÁC DỰ ÁN KHÁC
 
   const projectTrans = transactions.filter(t => t.projectId === project.id);
@@ -88,7 +84,7 @@ export const generateProjectStrategy = async (
     estimations: MaterialEstimation[],
     priceRecords: PriceRecord[]
 ): Promise<any> => {
-    const ai = getAiClient();
+    const ai = await getAiClient();
     const knowledge = getAIKnowledge(); // LOAD TRÍ NHỚ
 
     // Prepare context data
@@ -158,7 +154,7 @@ export const generatePartnerInsight = async (
     partner: Partner,
     stats: PartnerPerformance
 ): Promise<string> => {
-    const ai = getAiClient();
+    const ai = await getAiClient();
 
     const prompt = `
         Bạn là Chuyên gia Quản trị Quan hệ Khách hàng (CRM) & Tài chính.
@@ -197,7 +193,7 @@ export const generateSalaryFormula = async (
     description: string,
     availableVariables: { code: string; label: string }[]
 ): Promise<string> => {
-    const ai = getAiClient();
+    const ai = await getAiClient();
 
     const varList = availableVariables.map(v => `- ${v.label}: {${v.code}}`).join('\n');
 
@@ -235,7 +231,7 @@ export const generateStoreIntelligence = async (
     office: Office,
     transactions: Transaction[]
 ): Promise<any> => {
-    const ai = getAiClient();
+    const ai = await getAiClient();
     const knowledge = getAIKnowledge(); // LOAD TRÍ NHỚ CÔNG TY
 
     // 1. Pre-process Data (Minimizing tokens while maximizing context)
@@ -300,7 +296,7 @@ export const generateSmartAssistantInsights = async (
     role: 'ACCOUNTANT' | 'DIRECTOR',
     transactions: Transaction[]
 ): Promise<any> => {
-    const ai = getAiClient();
+    const ai = await getAiClient();
     const knowledge = getAIKnowledge(); // Load trí nhớ hệ thống
     
     // Slice last 50 transactions for context

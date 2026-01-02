@@ -33,8 +33,8 @@ export const getBackups = (): BackupSnapshot[] => {
     }
 };
 
-export const createSnapshot = (description: string = 'Manual Backup'): BackupSnapshot => {
-    const settings = getSettings();
+export const createSnapshot = async (description: string = 'Manual Backup'): Promise<BackupSnapshot> => {
+    const settings = await getSettings();
     const currentVersion = settings.appVersionName || 'v1.0.0';
     
     // Gather Data Safely
@@ -103,8 +103,8 @@ export const restoreData = (data: Record<string, any>) => {
     window.location.reload();
 };
 
-export const exportBackupToFile = () => {
-    const snapshot = createSnapshot('Exported File');
+export const exportBackupToFile = async () => {
+    const snapshot = await createSnapshot('Exported File'); // Await here
     const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

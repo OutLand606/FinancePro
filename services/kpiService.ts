@@ -107,9 +107,10 @@ export const calculateCommission = (actualRevenue: number, manualAdjustment: num
 
     level3Revenue = remaining;
 
-    const level1Commission = level1Revenue * (level1Percent / 100);
-    const level2Commission = level2Revenue * (level2Percent / 100);
-    const level3Commission = level3Revenue * (level3Percent / 100);
+    const level1Commission = Math.round(level1Revenue * (level1Percent / 100));
+    const level2Commission = Math.round(level2Revenue * (level2Percent / 100));
+    const level3Commission = Math.round(level3Revenue * (level3Percent / 100));
+    
     const totalCommission = level1Commission + level2Commission + level3Commission;
 
     return { level1Revenue, level2Revenue, level3Revenue, level1Commission, level2Commission, level3Commission, totalCommission };

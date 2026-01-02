@@ -33,12 +33,12 @@ export const INITIAL_SALARY_TEMPLATES: SalaryTemplate[] = [
     }
 ];
 
-export const INITIAL_SYSTEM_ROLES: SystemRole[] = [
-  { id: 'role_admin', code: 'ADMIN', name: 'Quản trị viên', isSystem: true, permissions: ['SYS_ADMIN'] },
-  { id: 'role_manager', code: 'MANAGER', name: 'Quản lý Dự án', permissions: ['PROJECT_VIEW_OWN', 'TRANS_CREATE', 'HR_VIEW_ALL'] },
-  { id: 'role_accountant', code: 'KT_VIEN', name: 'Kế toán viên', permissions: ['TRANS_CREATE', 'TRANS_APPROVE', 'HR_MANAGE', 'OFFICE_VIEW'] },
-  { id: 'role_staff', code: 'STAFF', name: 'Nhân viên', permissions: ['SALARY_VIEW_SELF'] }
-];
+// export const INITIAL_SYSTEM_ROLES: SystemRole[] = [
+//   { id: 'role_admin', code: 'ADMIN', name: 'Quản trị viên', isSystem: true, permissions: ['SYS_ADMIN'] },
+//   { id: 'role_manager', code: 'MANAGER', name: 'Quản lý Dự án', permissions: ['PROJECT_VIEW_OWN', 'TRANS_CREATE', 'HR_VIEW_ALL'] },
+//   { id: 'role_accountant', code: 'KT_VIEN', name: 'Kế toán viên', permissions: ['TRANS_CREATE', 'TRANS_APPROVE', 'HR_MANAGE', 'OFFICE_VIEW'] },
+//   { id: 'role_staff', code: 'STAFF', name: 'Nhân viên', permissions: ['SALARY_VIEW_SELF'] }
+// ];
 
 export const DEFAULT_KPI_TARGETS: TaxKpiTarget = { targetVatInputRatio: 60, targetLaborRatio: 30, targetMaterialRatio: 50 };
 export const DEFAULT_FEATURES: FeatureConfig[] = [{ key: 'AI_RECEIPT_SCAN', label: 'AI Scan Hóa Đơn', enabled: true, description: 'Tự động bóc tách hóa đơn bằng AI' }];
@@ -122,20 +122,4 @@ export const INITIAL_ASSETS: Asset[] = [
 
 export const INITIAL_INVENTORY: InventoryItem[] = [];
 
-// Re-declare for other modules
-export const MOCK_EMPLOYEES_LIST: Employee[] = [
-    { 
-        id: 'emp_owner', 
-        code: 'ADMIN-01', 
-        fullName: 'Admin Thái Bình Dương', 
-        email: 'ec.thaibinhduong@gmail.com', 
-        roleId: 'role_admin', 
-        status: 'ACTIVE', 
-        managedProjectIds: ['ALL'], 
-        salaryTemplateId: 'tpl_office_basic', 
-        baseSalary: 15000000, 
-        position: 'Giám đốc Điều hành', 
-        department: 'Ban quản trị', 
-        createdAt: new Date().toISOString() 
-    }
-];
+export const GEMINI_API_KEY = 'AIzaSyBBgth-NCxKrggnbzgD1kWGFGvJYmayNc4'

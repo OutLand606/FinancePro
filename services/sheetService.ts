@@ -2,36 +2,37 @@
 import { Project, Transaction, AppSettings } from '../types.ts';
 import { api } from './api';
 
-const STORAGE_KEYS = {
-  SETTINGS: 'finance_settings'
-};
+const CONFIG_ID = 'config_main';
 
-// Settings vẫn giữ ở LocalStorage vì là cấu hình Client-side
-const getRawData = (key: string, defaultValue: any) => {
+export const getSettings = async (): Promise<AppSettings> => {
     try {
-        const stored = localStorage.getItem(key);
-        return stored ? JSON.parse(stored) : defaultValue;
-    } catch { return defaultValue; }
-};
-
-const safeSetItem = (key: string, value: any) => {
-    try {
-        localStorage.setItem(key, JSON.stringify(value));
-    } catch (e: any) {
-        console.error("Storage Error:", e);
+        // Gọi API lấy bản ghi
+        const res = await api.get<AppSettings>(`/sys_app_settings/${CONFIG_ID}`);
+        
+        // Nếu có dữ liệu trả về đúng
+        if (res.success && res.data) {
+            return res.data;
+        }
+        
+        // Fallback nếu server chưa có hoặc lỗi
+        return { 
+            apiEndpoint: 'http://localhost:3001', 
+            useMockData: false, 
+            appVersionName: 'v1.0' 
+        };
+    } catch (e) {
+        console.error("Fetch settings error", e);
+        return { apiEndpoint: '', useMockData: true, appVersionName: 'v1.0' };
     }
 };
 
-export const getSettings = (): AppSettings => {
-    return getRawData(STORAGE_KEYS.SETTINGS, { 
-        apiEndpoint: '', 
-        useMockData: true,
-        appVersionName: 'v1.0'
+// 2. Lưu Settings lên Server
+export const saveSettings = async (settings: AppSettings): Promise<void> => {
+    // Gọi API PUT để cập nhật (Server đã có logic Upsert xử lý nếu chưa có)
+    await api.put(`/sys_app_settings/${CONFIG_ID}`, {
+        ...settings,
+        id: CONFIG_ID // Đảm bảo ID luôn khớp
     });
-};
-
-export const saveSettings = (settings: AppSettings) => {
-    safeSetItem(STORAGE_KEYS.SETTINGS, settings);
 };
 
 // --- DATA ACCESS LAYER (NOW USING API) ---

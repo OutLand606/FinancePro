@@ -30,7 +30,21 @@ export function Combobox<T>({
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const [openUpwards, setOpenUpwards] = useState(false); 
 
+  useEffect(() => {
+    if (isOpen && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const screenHeight = window.innerHeight;
+      const spaceBelow = screenHeight - rect.bottom;
+      
+      if (spaceBelow < 250) {
+        setOpenUpwards(true);
+      } else {
+        setOpenUpwards(false);
+      }
+    }
+  }, [isOpen]);
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -91,7 +105,10 @@ export function Combobox<T>({
       </div>
 
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto animate-in fade-in zoom-in duration-100">
+        <div 
+          className={`absolute z-[9999] w-full bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-auto animate-in fade-in zoom-in duration-100 
+          ${openUpwards ? 'bottom-full mb-1' : 'top-full mt-1'}`} 
+        >
           {filteredItems.length === 0 ? (
             <div className="p-3 text-center text-sm text-gray-500">
               <p>Không tìm thấy kết quả.</p>
@@ -122,14 +139,15 @@ export function Combobox<T>({
             </ul>
           )}
           {filteredItems.length > 0 && onAddNew && (
-             <div className="p-2 border-t border-gray-100 bg-gray-50 sticky bottom-0">
+             <div className="p-2 border-t border-gray-100 bg-gray-50 sticky bottom-0 z-10">
                <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation(); 
                     onAddNew(query);
                     setIsOpen(false);
                   }}
-                  className="w-full py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 rounded flex items-center justify-center"
+                  className="w-full py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 rounded flex items-center justify-center transition-colors"
                 >
                   <Plus size={14} className="mr-1" /> Thêm mới khác...
                 </button>

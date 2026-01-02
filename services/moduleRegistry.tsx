@@ -30,7 +30,7 @@ export const APP_MODULES: AppModuleDefinition[] = [
         label: 'Tổng quan',
         enabled: true,
         icon: LayoutDashboard,
-        component: (props: GlobalDataProps) => <Dashboard transactions={props.transactions} projects={props.projects} accounts={props.accounts} onNavigate={props.onNavigate} />
+        component: (props: GlobalDataProps) => <Dashboard currentUser={props.currentUser} transactions={props.transactions} projects={props.projects} accounts={props.accounts} onNavigate={props.onNavigate} />
     },
     {
         key: 'projects',

@@ -10,7 +10,6 @@ import {
 import { hasPermission } from '../services/authService';
 import { getEmployees } from '../services/employeeService';
 import { exportTransactionsToCSV, exportBatchPayment } from '../services/excelExportService';
-import { getSettings } from '../services/sheetService';
 import { fetchCashAccounts } from '../services/cashAccountService'; // Import service directly
 import { TransactionService } from '../services/transactionService'; 
 import TransactionForm from './TransactionForm';

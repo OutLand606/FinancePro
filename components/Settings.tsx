@@ -55,10 +55,10 @@ const Settings: React.FC = () => {
   }, [activeTab]);
 
   const loadData = async () => {
-      const settings = getSettings();
+      const settings = await getSettings();
       
       // Load common data if needed or lazy load
-      if (activeTab === 'ROLES') setRoles(getSystemRoles());
+      if (activeTab === 'ROLES') setRoles( await getSystemRoles());
       if (activeTab === 'CATEGORIES') setCategories(await fetchCategories());
       if (activeTab === 'ACCOUNTS') setAccounts(await fetchCashAccounts());
       
@@ -155,8 +155,8 @@ const Settings: React.FC = () => {
       loadData();
   };
 
-  const handleSaveGoogleConfig = () => {
-      const settings = getSettings();
+  const handleSaveGoogleConfig = async () => {
+      const settings = await getSettings();
       saveSettings({ 
           ...settings, 
           googleSheets: sheetConfig,
@@ -168,7 +168,7 @@ const Settings: React.FC = () => {
 
   const handleTestAI = async () => {
       // 1. Save locally first so getSettings can pick it up
-      const settings = getSettings();
+      const settings = await getSettings();;
       saveSettings({ ...settings, geminiApiKey });
       
       setAiConnectionStatus('TESTING');
@@ -182,7 +182,7 @@ const Settings: React.FC = () => {
       }
   };
 
-  const handleSaveSystemConfig = () => {
+  const handleSaveSystemConfig = async () => {
       // VALIDATION
       if (!appSettings.useMockData && !appSettings.apiEndpoint) {
           alert("LỖI: Bạn đang chọn chế độ Server (Real API) nhưng chưa nhập địa chỉ máy chủ.\nVui lòng nhập URL hoặc chuyển về chế độ Mockup.");
@@ -194,7 +194,7 @@ const Settings: React.FC = () => {
           return;
       }
 
-      const settings = getSettings();
+      const settings = await getSettings();;
       saveSettings({
           ...settings,
           apiEndpoint: appSettings.apiEndpoint,
@@ -230,11 +230,11 @@ const Settings: React.FC = () => {
       <div className="flex bg-white p-2 rounded-[20px] border border-slate-200 shadow-sm w-fit overflow-x-auto">
           {[
               {k:'ACCOUNTS',i:CreditCard,l:'Quỹ tiền & Tài khoản'},
-              {k:'SYSTEM',i:Server,l:'Kết nối Hệ Thống'},
-              {k:'MIGRATION',i:Activity,l:'Sức khỏe & Migration'},
+            //   {k:'SYSTEM',i:Server,l:'Kết nối Hệ Thống'},
+            //   {k:'MIGRATION',i:Activity,l:'Sức khỏe & Migration'},
               {k:'GOOGLE_INTEGRATION',i:HardDrive,l:'Google Integration'},
               {k:'ROLES',i:Lock,l:'Phân Quyền & Vai Trò'}, 
-              {k:'BACKUP',i:Archive,l:'Sao Lưu Dữ Liệu'}
+            //   {k:'BACKUP',i:Archive,l:'Sao Lưu Dữ Liệu'}
           ].map(t => (
               <button key={t.k} onClick={() => setActiveTab(t.k as any)} className={`flex items-center px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === t.k ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
                   <t.i size={16} className="mr-2"/> {t.l}

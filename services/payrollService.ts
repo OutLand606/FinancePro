@@ -18,30 +18,26 @@ const FALLBACK_COMPONENTS: SalaryComponent[] = [
     { id: 'c6', code: 'THUC_LINH', name: 'Thực lĩnh', type: 'KHAC', nature: 'KHAC', isTaxable: false, formula: '=grossIncome - totalDeduction', status: 'ACTIVE' },
 ];
 
-export const getSalaryComponents = (): SalaryComponent[] => {
-    try {
-        const s = localStorage.getItem(STORAGE_KEYS.COMPONENTS);
-        if (!s || s === '[]') {
-            localStorage.setItem(STORAGE_KEYS.COMPONENTS, JSON.stringify(FALLBACK_COMPONENTS));
-            return FALLBACK_COMPONENTS;
-        }
-        return JSON.parse(s);
-    } catch {
-        return FALLBACK_COMPONENTS;
+// --- COMPONENTS MANAGEMENT (API NOW) ---
+
+export const getSalaryComponents = async (): Promise<SalaryComponent[]> => {
+    // Gọi API lấy danh sách components từ bảng 'salary_components'
+    const res = await api.get<SalaryComponent[]>('/salary_components');
+    return res.success ? res.data : [];
+};
+
+export const saveSalaryComponent = async (comp: SalaryComponent) => {
+    // Upsert logic
+    const existing = await api.get(`/salary_components/${comp.id}`);
+    if (existing.success && existing.data) {
+        await api.put(`/salary_components/${comp.id}`, comp);
+    } else {
+        await api.post('/salary_components', comp);
     }
 };
 
-export const saveSalaryComponent = (comp: SalaryComponent) => {
-    const current = getSalaryComponents();
-    const idx = current.findIndex(c => c.id === comp.id);
-    if (idx >= 0) current[idx] = comp; else current.push(comp);
-    localStorage.setItem(STORAGE_KEYS.COMPONENTS, JSON.stringify(current));
-};
-
-export const deleteSalaryComponent = (id: string) => {
-    const current = getSalaryComponents();
-    const updated = current.filter(c => c.id !== id);
-    localStorage.setItem(STORAGE_KEYS.COMPONENTS, JSON.stringify(updated));
+export const deleteSalaryComponent = async (id: string) => {
+    await api.delete(`/salary_components/${id}`);
 };
 
 export const saveMonthlyInputs = (month: string, inputs: Record<string, any>) => {
@@ -288,3 +284,5 @@ export const exportPayrollToExcel = (run: PayrollRun) => {
     link.download = `Bang_Luong_${run.month}.csv`;
     link.click();
 };
+
+

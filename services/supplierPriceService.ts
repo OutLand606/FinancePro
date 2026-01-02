@@ -2,11 +2,11 @@
 import { PriceRecord, DataSource, Transaction, TransactionType, TransactionStatus, MaterialCategory, DocumentType, MaterialMaster } from '../types';
 import { fetchMaterialMaster } from './masterDataService';
 import { GoogleGenAI } from "@google/genai";
-import { getSettings } from './sheetService';
 import { api } from './api';
+import { GEMINI_API_KEY } from '@/constants';
 
-const getAiClient = () => {
-    const apiKey = getSettings().geminiApiKey || process.env.API_KEY;
+const getAiClient = async () => {
+    const apiKey = GEMINI_API_KEY
     if (!apiKey) throw new Error("Vui lòng cấu hình Gemini API Key trong phần Cài đặt hệ thống.");
     return new GoogleGenAI({ apiKey });
 };
@@ -18,7 +18,7 @@ export const fetchPriceRecords = async (): Promise<PriceRecord[]> => {
 
 // --- AI ENGINE: BÓC TÁCH ĐƠN GIÁ TỐI ƯU ---
 const extractPriceInfoFromDesc = async (description: string, amount: number): Promise<{qty: number, unit: string, price: number} | null> => {
-    const ai = getAiClient();
+    const ai = await getAiClient();
     const prompt = `
         Bạn là kế toán công trường. Hãy bóc tách đơn giá từ nội dung: "${description}". Tổng tiền: ${amount}.
         Yêu cầu trả về JSON: {"qty": number, "unit": "string", "price": number}. 

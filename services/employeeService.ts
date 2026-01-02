@@ -8,12 +8,12 @@ const STORAGE_KEYS = {
 }
 
 // INLINED DEFAULTS (Still needed for Templates until migrated)
-const DEFAULT_SALARY_TEMPLATES: SalaryTemplate[] = [
-    {
-        id: 'tpl_office_basic', name: 'Mẫu lương Văn Phòng', appliedPositions: ['Nhân viên', 'Kế toán', 'Hành chính'], status: 'ACTIVE',
-        components: []
-    }
-];
+// const DEFAULT_SALARY_TEMPLATES: SalaryTemplate[] = [
+//     {
+//         id: 'tpl_office_basic', name: 'Mẫu lương Văn Phòng', appliedPositions: ['Nhân viên', 'Kế toán', 'Hành chính'], status: 'ACTIVE',
+//         components: []
+//     }
+// ];
 
 // --- EMPLOYEE API METHODS ---
 
@@ -42,19 +42,19 @@ export const createEmployee = async (emp: Employee): Promise<void> => {
 // --- SALARY CONFIG (Still Local for now, or migrate next) ---
 
 export const getSalaryTemplates = async (): Promise<SalaryTemplate[]> => {
-    // TODO: Migrate to API /salary-templates
-    const res = await api.get<SalaryTemplate[]>('/salary-templates');
+    // TODO: Migrate to API /salary_templates
+    const res = await api.get<SalaryTemplate[]>('/salary_templates');
     if (res.success && res.data.length > 0) return res.data;
-    return DEFAULT_SALARY_TEMPLATES;
+    // return DEFAULT_SALARY_TEMPLATES;
 };
 
 export const saveSalaryTemplate = async (template: SalaryTemplate): Promise<void> => {
     // Hybrid approach: Try API first
-    const existing = await api.get<SalaryTemplate>(`/salary-templates/${template.id}`);
+    const existing = await api.get<SalaryTemplate>(`/salary_templates/${template.id}`);
     if (existing.success && existing.data) {
-        await api.put(`/salary-templates/${template.id}`, template);
+        await api.put(`/salary_templates/${template.id}`, template);
     } else {
-        await api.post('/salary-templates', template);
+        await api.post('/salary_templates', template);
     }
 };
 

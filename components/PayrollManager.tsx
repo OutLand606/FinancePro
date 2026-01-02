@@ -44,9 +44,35 @@ const PayrollManager: React.FC = () => {
   const [aiPromptText, setAiPromptText] = useState('');
   const [isGeneratingFormula, setIsGeneratingFormula] = useState(false);
 
-  useEffect(() => {
-      loadRuns();
-      setComponents(getSalaryComponents());
+ useEffect(() => {
+      const loadTabData = async () => {
+          // 1. Load Sổ lương (Runs)
+          if (activeTab === 'RUNS') {
+              await loadRuns();
+          } 
+          
+          // 2. Load Tham số lương (Components) - FIX ASYNC
+          else if (activeTab === 'COMPONENTS') {
+              try {
+                  const data = await getSalaryComponents(); // Phải có await
+                  setComponents(data);
+              } catch (e) {
+                  console.error("Lỗi tải tham số lương:", e);
+              }
+          }
+
+          // 3. Bổ sung: Load Mẫu lương (Templates) để tránh lỗi không hiện card
+          else if (activeTab === 'TEMPLATES') {
+              try {
+                  const tpls = await getSalaryTemplates();
+                  setTemplates(tpls);
+              } catch (e) {
+                  console.error("Lỗi tải mẫu lương:", e);
+              }
+          }
+      };
+
+      loadTabData();
   }, [activeTab]);
 
   useEffect(() => {
@@ -142,7 +168,7 @@ const PayrollManager: React.FC = () => {
       }
   };
 
-  const handleSaveComp = () => {
+  const handleSaveComp = async () => {
       const newComp: SalaryComponent = {
           id: editingComponent.id || `comp_${Date.now()}`,
           code: editingComponent.code!.toUpperCase(),
@@ -154,9 +180,17 @@ const PayrollManager: React.FC = () => {
           value: editingComponent.value || 0,
           status: 'ACTIVE'
       };
-      saveSalaryComponent(newComp);
-      setShowComponentModal(false);
-      setComponents(getSalaryComponents());
+      
+      try {
+          await saveSalaryComponent(newComp); // Gọi API lưu
+          setShowComponentModal(false);
+          
+          // Reload lại danh sách hiển thị
+          const comps = await getSalaryComponents();
+          setComponents(comps);
+      } catch (e: any) {
+          alert("Lỗi lưu tham số: " + e.message);
+      }
   };
 
   const handleGenerateFormula = async () => {
@@ -185,6 +219,29 @@ const PayrollManager: React.FC = () => {
           setIsGeneratingFormula(false);
       }
   };
+
+
+  useEffect(() => {
+      const loadTabData = async () => {
+          if (activeTab === 'RUNS') {
+              await loadRuns();
+          } else if (activeTab === 'TEMPLATES') {
+              // Khi vào tab Mẫu Lương -> Gọi API lấy Template ngay
+              try {
+                  const tpls = await getSalaryTemplates();
+                  setTemplates(tpls);
+              } catch (e) { console.error("Lỗi tải mẫu lương", e); }
+          } else if (activeTab === 'COMPONENTS') {
+              // Khi vào tab Tham số -> Gọi API lấy Component ngay
+              try {
+                  const comps = await getSalaryComponents();
+                  setComponents(comps);
+              } catch (e) { console.error("Lỗi tải tham số lương", e); }
+          }
+      };
+
+      loadTabData();
+  }, [activeTab]);
 
   const renderRunList = () => (
       <div className="space-y-6 animate-in fade-in">
@@ -289,6 +346,10 @@ const PayrollManager: React.FC = () => {
                                   <td className="px-4 py-3 font-bold text-slate-700">
                                       {slip.empName}
                                       <div className="text-[10px] text-slate-400 font-normal">{slip.roleName}</div>
+                                      <div className="text-[10px] text-indigo-500 font-medium flex items-center mt-1">
+                                        <TableProperties size={10} className="mr-1"/>
+                                        {slip.templateSnapshot?.name || 'Chưa gán mẫu'}
+                                      </div>
                                   </td>
                                   <td className="px-4 py-3 text-center">{slip.actualWorkDays}</td>
                                   <td className="px-4 py-3 text-right">{slip.baseSalary.toLocaleString()}</td>
@@ -343,7 +404,7 @@ const PayrollManager: React.FC = () => {
                               <td className="px-6 py-4 font-bold">{c.name}</td>
                               <td className="px-6 py-4 font-mono text-xs text-slate-500">{c.formula}</td>
                               <td className="px-6 py-4 text-right">
-                                  {!c.isSystem && <button onClick={() => { if(confirm("Xóa?")) deleteSalaryComponent(c.id); setComponents(getSalaryComponents()); }} className="text-red-500"><Trash2 size={16}/></button>}
+                                  {!c.isSystem && <button onClick={ async () => { if(confirm("Xóa?")) deleteSalaryComponent(c.id); setComponents( await getSalaryComponents()); }} className="text-red-500"><Trash2 size={16}/></button>}
                               </td>
                           </tr>
                       ))}

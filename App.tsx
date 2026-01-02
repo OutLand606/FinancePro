@@ -122,7 +122,7 @@ const App: React.FC = () => {
 
   // Handlers
   const handleLogout = () => {
-      localStorage.removeItem('finance_user_session');
+      localStorage.removeItem('access_token');
       setCurrentUser(null);
       setActiveTab('dashboard');
       // No reload needed, React state change will switch to LoginScreen

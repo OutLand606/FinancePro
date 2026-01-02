@@ -74,10 +74,29 @@ const ProjectDetail360: React.FC<ProjectDetail360Props> = ({
   const [newLinkName, setNewLinkName] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
+  // --- FIX: INITIAL LOAD EFFECT ---
   useEffect(() => {
-    if (initialPartners.length === 0) fetchPartners().then(setPartners);
-    const settings = getSettings();
-    if (settings.googleSheets?.projectUrl) setProjectSheetUrl(settings.googleSheets.projectUrl);
+    // Tạo một hàm async riêng biệt bên trong effect
+    const loadInitData = async () => {
+      try {
+        // 1. Load Partners nếu chưa có (dữ liệu rỗng)
+        if (initialPartners.length === 0) {
+          const fetchedPartners = await fetchPartners();
+          setPartners(fetchedPartners);
+        }
+
+        // 2. Load Settings từ Backend (Async)
+        const settings = await getSettings();
+        if (settings.googleSheets?.projectUrl) {
+          setProjectSheetUrl(settings.googleSheets.projectUrl);
+        }
+      } catch (error) {
+        console.error("Error loading project details dependencies:", error);
+      }
+    };
+
+    // Gọi hàm async ngay lập tức
+    loadInitData();
   }, [initialPartners]);
 
   // --- DỮ LIỆU TÀI CHÍNH 360 ---
