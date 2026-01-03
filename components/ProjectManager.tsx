@@ -75,10 +75,24 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ projects, priceRecords,
 
   // 1. Calculate Financials using SERVICE LAYER
   const projectStats = useMemo(() => {
-      const accessbileProjects = projects.filter(p => canAccessProject(currentUser, p.managerEmpId));
-      
-      return accessbileProjects.map(p => {
-          // Use centralized domain logic
+      const perms = currentUser?.permissions || [];
+      const isSysAdmin = perms.includes('SYS_ADMIN');
+      const canViewAll = perms.includes('PROJECT_VIEW_ALL');
+      const canViewOwn = perms.includes('PROJECT_VIEW_OWN');
+
+      let accessibleProjects = [];
+      if (isSysAdmin || canViewAll) {
+          accessibleProjects = projects;
+      } else if (canViewOwn) {
+          accessibleProjects = projects.filter(p => {
+              const isManager = p.managerEmpId === currentUser.id;
+              const isSales = (p.salesEmpIds || []).includes(currentUser.id);
+              return isManager || isSales;
+          });
+      } else {
+          accessibleProjects = [];
+      }
+      return accessibleProjects.map(p => {
           const financials = calculateProjectFinancials(p, transactions);
           return { ...p, financials };
       });
@@ -449,7 +463,9 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ projects, priceRecords,
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
                       {filteredProjects.map(p => (
-                          <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer" onClick={() => handleOpenDetail(p)}>
+                          <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer"  onClick={() => {
+                          if (canModifyProjectsEdit) handleOpenDetail(p);
+                      }}>
                               <td className="px-6 py-4">
                                   <div className="flex items-center gap-3">
                                       <div className={`w-2 h-10 rounded-full ${p.status === 'ACTIVE' ? 'bg-blue-500' : p.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>

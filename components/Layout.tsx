@@ -38,22 +38,28 @@ const Layout: React.FC<LayoutProps> = ({
           case 'transactions': // Sổ Thu Chi
               return perms.some(p => ['TRANS_CREATE', 'TRANS_VIEW_ALL', 'TRANS_APPROVE', 'TRANS_PAY'].includes(p));
           case 'contracts': // Hợp đồng
-          case 'customers': // Khách hàng
-          case 'suppliers': // Thị trường
-              return perms.some(p => ['PROJECT_VIEW_ALL', 'TRANS_CREATE'].includes(p));
-          case 'office': // Office & Store
-              return perms.includes('OFFICE_VIEW') || perms.includes('OFFICE_MANAGE');
-          case 'hr-group': // Nhóm Nhân sự (Cha)
               return true
+          case 'customers': // Khách hàng
+              return true
+          case 'suppliers': // Thị trường
+              return true
+          case 'office': // Office & Store
+              return perms.some(p => ['OFFICE_VIEW'].includes(p));
+          case 'hr-group': // Nhóm Nhân sự (Cha)
+             return perms.some(p => ['HR_VIEW_ALL'].includes(p));
           case 'employees': // Nhân viên
+                 return perms.some(p => ['HR_VIEW_ALL'].includes(p));
           case 'timesheets': // Chấm công
           case 'payroll': // Bảng lương
+              return perms.some(p => ['SALARY_MANAGE'].includes(p));
           case 'kpi': // KPI
-              return perms.some(p => ['HR_VIEW_ALL', 'HR_MANAGE', 'EMPLOYEE_MANAGE', 'SALARY_MANAGE'].includes(p));
+              return perms.some(p => ['HR_MANAGE', 'EMPLOYEE_MANAGE', 'SALARY_MANAGE'].includes(p));
           case 'my-salary': // Lương của tôi
-              return true; 
+             return perms.some(p => ['SALARY_VIEW_SELF'].includes(p));
           case 'tax-kpi': // Thuế
+             return true
           case 'analysis': // AI
+             return true
           case 'settings': // Cấu hình
               return perms.some(p => ['SYS_ADMIN', 'SYS_CONFIG_EDIT'].includes(p));
           default:

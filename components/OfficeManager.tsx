@@ -196,6 +196,13 @@ const OfficeManager: React.FC<OfficeManagerProps> = ({ transactions, currentUser
         );
     };
 
+
+     const canCreateTransactionCreater = useMemo(() => {
+            const perms = currentUser?.permissions || [];
+            if (perms.includes('SYS_ADMIN')) return true;
+            return perms.some(p => ['OFFICE_MANAGE'].includes(p));
+        }, [currentUser]);
+
     return (
         <div className="space-y-8 animate-in fade-in pb-20">
             {/* Header */}
@@ -210,8 +217,12 @@ const OfficeManager: React.FC<OfficeManagerProps> = ({ transactions, currentUser
                     </div>
                 </div>
                 <button 
+                    disabled={!canCreateTransactionCreater}
                     onClick={() => { setEditingOffice({type: OfficeType.OFFICE, status: 'ACTIVE'}); setIsModalOpen(true); }}
-                    className="flex items-center px-6 py-3 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-indigo-200 transition-all active:scale-95"
+                    className={`bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center ${canCreateTransactionCreater 
+                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95' 
+                        : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-70 shadow-none'
+                    }`}
                 >
                     <Plus size={16} className="mr-2"/> Thêm Đơn vị mới
                 </button>
