@@ -355,7 +355,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
       </div>
 
       {/* 2. FUND VISIBILITY BAR (NEW) */}
-      <div className="bg-slate-900 rounded-[24px] p-4 text-white shadow-md relative overflow-hidden">
+      {/* <div className="bg-slate-900 rounded-[24px] p-4 text-white shadow-md relative overflow-hidden">
           <div className="flex justify-between items-center mb-2">
               <h3 className="text-xs font-black uppercase tracking-widest flex items-center text-indigo-200">
                   <Landmark size={14} className="mr-2"/> Tình hình Quỹ Tiền Hiện Tại (Real-time)
@@ -384,7 +384,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
                   {accountBalances.length === 0 && <span className="text-xs italic text-slate-400">Chưa cấu hình quỹ tiền.</span>}
               </div>
           )}
-      </div>
+      </div> */}
 
       {/* 3. STATS & FILTERS */}
       <div className="bg-white p-4 rounded-[24px] border border-slate-200 shadow-sm flex flex-col gap-4">

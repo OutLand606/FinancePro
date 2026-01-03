@@ -94,7 +94,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, transactions, projec
   };
 
   const perms = currentUser?.permissions || [];
-  const canViewMoney = perms.some(p => ['SYS_ADMIN', 'OFFICE_VIEW', 'PROJECT_VIEW_OWN'].includes(p));
+  const canViewMoney = perms.some(p => ['SYS_ADMIN', 'TRANS_VIEW_ALL'].includes(p));
   const formatMoney = (amount: number) => canViewMoney ? amount.toLocaleString() + ' ₫' : '******* ₫';
 
 
@@ -104,8 +104,6 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, transactions, projec
     if (perms.includes('SYS_ADMIN')) return true;
     const  check = perms.some(p => ['HR_VIEW_ALL'].includes(p));
         if(check){
-            onNavigate?.('hr-group')
-        }else{
             onNavigate?.('hr-group')
         }
   }
