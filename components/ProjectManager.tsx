@@ -75,10 +75,24 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ projects, priceRecords,
 
   // 1. Calculate Financials using SERVICE LAYER
   const projectStats = useMemo(() => {
-      const accessbileProjects = projects.filter(p => canAccessProject(currentUser, p.managerEmpId));
-      
-      return accessbileProjects.map(p => {
-          // Use centralized domain logic
+      const perms = currentUser?.permissions || [];
+      const isSysAdmin = perms.includes('SYS_ADMIN');
+      const canViewAll = perms.includes('PROJECT_VIEW_ALL');
+      const canViewOwn = perms.includes('PROJECT_VIEW_OWN');
+
+      let accessibleProjects = [];
+      if (isSysAdmin || canViewAll) {
+          accessibleProjects = projects;
+      } else if (canViewOwn) {
+          accessibleProjects = projects.filter(p => {
+              const isManager = p.managerEmpId === currentUser.id;
+              const isSales = (p.salesEmpIds || []).includes(currentUser.id);
+              return isManager || isSales;
+          });
+      } else {
+          accessibleProjects = [];
+      }
+      return accessibleProjects.map(p => {
           const financials = calculateProjectFinancials(p, transactions);
           return { ...p, financials };
       });
