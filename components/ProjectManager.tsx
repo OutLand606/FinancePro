@@ -449,7 +449,9 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ projects, priceRecords,
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
                       {filteredProjects.map(p => (
-                          <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer" onClick={() => handleOpenDetail(p)}>
+                          <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer"  onClick={() => {
+                          if (canModifyProjectsEdit) handleOpenDetail(p);
+                      }}>
                               <td className="px-6 py-4">
                                   <div className="flex items-center gap-3">
                                       <div className={`w-2 h-10 rounded-full ${p.status === 'ACTIVE' ? 'bg-blue-500' : p.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>

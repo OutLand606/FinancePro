@@ -539,8 +539,9 @@ const TransactionList: React.FC<TransactionListProps> = ({
                                           <CheckCircle size={14} className="mr-1"/> Xác nhận Thu
                                       </button>
                                   )}
-
+                                {(canCreateTransactionPay || canCreateTransactionApprove ) && (
                                   <button onClick={() => onDeleteTransaction(t.id)} className="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-rose-500"><Trash2 size={16}/></button>
+                                )}
                               </div>
                           </td>
                       </tr>

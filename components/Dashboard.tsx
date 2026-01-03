@@ -75,29 +75,40 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, transactions, projec
           case 'FINANCE': // Sổ Thu Chi
               return perms.some(p => ['TRANS_CREATE', 'TRANS_VIEW_ALL', 'TRANS_APPROVE', 'TRANS_PAY'].includes(p));
           case 'CONTRACTS': // Hợp Đồng 
-              return perms.some(p => [].includes(p));
+              return true
           case 'CUSTOMERS': // Khách Hàng
-              return perms.some(p => [].includes(p));
+              return true
           case 'SUPPLIERS': // Thị Trường
-              return perms.some(p => ['PROJECT_VIEW_ALL', 'TRANS_CREATE'].includes(p));
+              return true
           case 'OFFICE': // Office & Store
               return perms.some(p => ['OFFICE_VIEW', 'OFFICE_MANAGE'].includes(p));
           case 'HR': // Nhân sự & Lương
-              return perms.some(p => [].includes(p));
+              return perms.some(p => ['HR_VIEW_ALL'].includes(p));
           case 'TAX': // Thuế & KPI
-              return perms.some(p => [ 'PROJECT_VIEW_OWN','SALARY_VIEW_SELF','OFFICE_VIEW'].includes(p));
+              return true
           case 'AI': // AI
-              return perms.some(p => [].includes(p));
+              return true
           default:
               return false;
       }
   };
 
   const perms = currentUser?.permissions || [];
-  const canViewMoney = currentUser?.role === 'DIRECTOR' || 
-                       perms.some(p => ['SYS_ADMIN', 'OFFICE_VIEW', 'PROJECT_VIEW_OWN'].includes(p));
-  const canViewTax = currentUser?.role === 'DIRECTOR' || perms.includes('SYS_ADMIN');
+  const canViewMoney = perms.some(p => ['SYS_ADMIN', 'OFFICE_VIEW', 'PROJECT_VIEW_OWN'].includes(p));
   const formatMoney = (amount: number) => canViewMoney ? amount.toLocaleString() + ' ₫' : '******* ₫';
+
+
+  const handleClickNhanSu = () => 
+  {
+    const perms = currentUser?.permissions || [];
+    if (perms.includes('SYS_ADMIN')) return true;
+    const  check = perms.some(p => ['HR_VIEW_ALL'].includes(p));
+        if(check){
+            onNavigate?.('hr-group')
+        }else{
+            onNavigate?.('hr-group')
+        }
+  }
 
   return (
     <div className="space-y-10 animate-in fade-in pb-20 relative">
@@ -212,7 +223,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, transactions, projec
               )}
 
               {checkAccess('HR') && (
-                  <ShortcutItem label="Nhân Sự & Lương" description="Chấm công, KPI, Lương" icon={Users} color={{bg:'bg-pink-50', text:'text-pink-600', bar:'bg-pink-500'}} onClick={() => onNavigate?.('hr-group')} />
+                  <ShortcutItem label="Nhân Sự & Lương" description="Chấm công, KPI, Lương" icon={Users} color={{bg:'bg-pink-50', text:'text-pink-600', bar:'bg-pink-500'}} onClick={handleClickNhanSu} />
               )}
 
               {/* Thuế & KPI, AI Analyst: Chỉ dành cho Admin */}

@@ -53,7 +53,7 @@ const InputField = ({ label, value, onChange, placeholder, type = "text", option
     </div>
 );
 
-const EmployeeManager: React.FC<GlobalDataProps> = ({ transactions, projects, contracts }) => {
+const EmployeeManager: React.FC<GlobalDataProps> = ({ currentUser, transactions, projects, contracts }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [roles, setRoles] = useState<SystemRole[]>([]);
   const [templates, setTemplates] = useState<SalaryTemplate[]>([]);
@@ -181,6 +181,18 @@ const EmployeeManager: React.FC<GlobalDataProps> = ({ transactions, projects, co
       }
   };
 
+  const canCreateTransactionCreater = useMemo(() => {
+        const perms = currentUser?.permissions || [];
+        if (perms.includes('SYS_ADMIN')) return true;
+        return perms.some(p => ['HR_MANAGE'].includes(p));
+    }, [currentUser]);
+
+    const canCreateTransactionXem = useMemo(() => {
+        const perms = currentUser?.permissions || [];
+        if (perms.includes('SYS_ADMIN')) return true;
+        return perms.some(p => ['HR_MANAGE','EMPLOYEE_MANAGE'].includes(p));
+    }, [currentUser]);
+
   return (
     <div className="space-y-6 animate-in fade-in pb-20 -m-8 h-screen flex flex-col bg-[#fcfdfe]">
       <div className="bg-white border-b border-slate-100 px-10 py-6 flex items-center justify-between shrink-0 shadow-sm z-30">
@@ -203,8 +215,12 @@ const EmployeeManager: React.FC<GlobalDataProps> = ({ transactions, projects, co
                   <button onClick={() => setViewMode('GRID')} className={`p-2 rounded-lg transition-all ${viewMode === 'GRID' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}><GridIcon size={18}/></button>
               </div>
               <button 
+                disabled={!canCreateTransactionCreater}
                 onClick={handleOpenCreate}
-                className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center"
+                className={`bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center ${canCreateTransactionCreater 
+                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95' 
+                        : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-70 shadow-none'
+                    }`}
               >
                 <Plus size={18} className="mr-2"/> Tuyển dụng mới
               </button>
@@ -280,8 +296,10 @@ const EmployeeManager: React.FC<GlobalDataProps> = ({ transactions, projects, co
                               </td>
                               <td className="px-8 py-4 text-right">
                                   <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button onClick={(ev) => { ev.stopPropagation(); setViewing360Emp(e); }} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-md rounded-xl transition-all"><Eye size={16}/></button>
-                                      <button onClick={(ev) => { ev.stopPropagation(); setEditingEmp(e); setShowEmpModal(true); setActiveFormTab('BASIC'); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-md rounded-xl transition-all"><Edit size={16}/></button>
+                                      <button  onClick={(ev) => { ev.stopPropagation(); setViewing360Emp(e); }} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-md rounded-xl transition-all"><Eye size={16}/></button>
+
+                                      {/* ở đây  */}
+                                      <button  disabled={!canCreateTransactionXem} onClick={(ev) => { ev.stopPropagation(); setEditingEmp(e); setShowEmpModal(true); setActiveFormTab('BASIC'); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-md rounded-xl transition-all"><Edit size={16}/></button>
                                   </div>
                               </td>
                           </tr>
