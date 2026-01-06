@@ -110,6 +110,9 @@ const TransactionList: React.FC<TransactionListProps> = ({
         base = base.filter(t => t.requesterId === currentUser.id);
     }
 
+    if (activeSubTab === 'APPROVAL') base = transactions.filter(t => t.status === TransactionStatus.SUBMITTED);
+    else if (activeSubTab === 'UNPAID') base = transactions.filter(t => t.status === TransactionStatus.APPROVED && t.type === TransactionType.EXPENSE);
+
     if (timeFilterMode !== 'ALL') {
         base = base.filter(t => {
             if (!t.date) return false;
