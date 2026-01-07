@@ -9,7 +9,7 @@ const getApiConfig = () => {
     const settings = local ? JSON.parse(local) : {};
     return {
       useMock: false,
-      baseUrl: "http://localhost:3001",
+      baseUrl: "http://erp.thicongpccc.com.vn:3001",
     };
   } catch {
     return { useMock: true, baseUrl: "" };
