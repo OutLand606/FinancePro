@@ -40,7 +40,7 @@ const Settings: React.FC = () => {
   // System Configs
   const [appSettings, setAppSettings] = useState<AppSettings>({
       apiEndpoint: '',
-      useMockData: true,
+      useMockData: false,
       appVersionName: 'v1.0'
   });
   
