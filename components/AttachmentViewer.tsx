@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, {useMemo} from 'react';
 import { X, Download, FileText, Image as ImageIcon, FileSpreadsheet, File, ExternalLink, Cloud } from 'lucide-react';
 import { Attachment } from '../types';
 
@@ -22,6 +22,12 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
     link.click();
     document.body.removeChild(link);
   };
+
+  const finalUrl = useMemo(() => {
+    let url = attachment.url || "";
+    if (url.includes('drive.google.com')) return url;
+    return url.replace('http://', 'https://').replace(':3001', '');
+}, [attachment.url]);
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -54,14 +60,14 @@ const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachment, onClose
                    <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600"><Cloud size={40}/></div>
                    <h4 className="text-xl font-bold text-gray-800 mb-2">File lưu trên Google Drive</h4>
                    <p className="text-gray-500 mb-8 text-sm">Tài liệu này được lưu trữ an toàn trên đám mây. Vui lòng mở trong tab mới để xem.</p>
-                   <a href={attachment.url} target="_blank" rel="noreferrer" className="inline-flex items-center px-8 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all">
+                   <a href={finalUrl} target="_blank" rel="noreferrer" className="inline-flex items-center px-8 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all">
                        <ExternalLink size={18} className="mr-2"/> Mở trên Drive
                    </a>
                </div>
            ) : isPdf ? (
-               <iframe src={attachment.url} className="w-full h-full border-none rounded shadow-sm bg-white" title="PDF Viewer" />
+               <iframe src={finalUrl} className="w-full h-full border-none rounded shadow-sm bg-white" title="PDF Viewer" />
            ) : isImage ? (
-               <img src={attachment.url} alt="Preview" className="max-w-full max-h-full rounded shadow-lg object-contain" onClick={(e) => e.stopPropagation()} />
+               <img src={finalUrl} alt="Preview" className="max-w-full max-h-full rounded shadow-lg object-contain" onClick={(e) => e.stopPropagation()} />
            ) : (
                <div className="text-center">
                    <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400"><FileText size={48} /></div>
