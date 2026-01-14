@@ -159,6 +159,14 @@ export interface Project {
     status: 'ACTIVE' | 'COMPLETED' | 'SUSPENDED' | 'CANCELLED';
     customerId?: string;
     customerName: string;
+    // CONTACTS
+    customerPhone?: string; // SĐT đăng nhập CĐT
+    contacts?: ProjectContact[]; // Danh sách liên hệ động
+
+    // Deprecated fields (kept for compatibility during migration if needed
+    managerName?: string; 
+    managerPhone?: string; 
+
     contractTotalValue?: number;
     managerEmpId?: string;
     salesEmpIds?: string[];
@@ -170,6 +178,8 @@ export interface Project {
     operationalNotes?: ProjectNote[];
     documents?: Attachment[];
     projectLevel?: ProjectLevel;
+    infoFields?: ProjectInfoField[]; 
+    tipQrUrl?: string; 
 }
 
 export interface Partner {
@@ -737,4 +747,105 @@ export interface BackupSnapshot {
     data: any;
     sizeBytes: number;
     description?: string;
+}
+
+
+
+export enum StageStatus { PENDING = 'PENDING', IN_PROGRESS = 'IN_PROGRESS', COMPLETED = 'COMPLETED', BLOCKED = 'BLOCKED' }
+export enum LogType { WORK_REPORT = 'WORK_REPORT', ACCEPTANCE = 'ACCEPTANCE', ISSUE_REPORT = 'ISSUE_REPORT', FEEDBACK = 'FEEDBACK' }
+
+
+
+export interface RoadmapTemplate {
+    id: string;
+    name: string;
+    stages: { title: string; description: string; weightPercent?: number }[];
+}
+
+export interface RoadmapStage {
+    id: string;
+    roadmapId: string;
+    title: string;
+    description: string;
+    status: StageStatus;
+    order: number;
+    weightPercent?: number;
+    startDate?: string;
+    endDate?: string;
+    expectedMaterialDate?: string; // NEW FIELD: Ngày cấp vật tư dự kiến
+}
+
+
+export interface RoadmapLog {
+    id: string;
+    projectId: string;
+    roadmapId: string;
+    stageId?: string;
+    performerId: string;
+    performerName: string;
+    performerRole: 'WORKER' | 'MANAGER' | 'CUSTOMER';
+    timestamp: string;
+    content: string;
+    locationTag?: string;
+    photos: Attachment[];
+    type: LogType;
+    isHighlighted: boolean;
+    status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
+}
+
+
+export interface CustomerFeedback {
+    id: string;
+    customerId: string;
+    content: string;
+    date: string;
+    rating?: number;
+    attachments?: Attachment[]; // Added attachments support
+}
+
+
+export interface RoadmapAccessLink {
+    token: string;
+    projectId: string;
+    role: 'CUSTOMER' | 'WORKER';
+    label: string;
+    createdAt: string;
+    expiresAt: string;
+    isActive: boolean;
+}
+
+export interface ProjectRoadmap {
+    id: string;
+    projectId: string;
+    templateName?: string;
+    stages: RoadmapStage[];
+    logs: RoadmapLog[];
+    settings?: {
+        showSpecs: boolean;
+        allowRating: boolean;
+        allowFeedback: boolean;
+    };
+    feedbacks?: CustomerFeedback[];
+    lastUpdated: string;
+    overallProgress: number;
+    accessLinks?: RoadmapAccessLink[];
+}
+
+
+
+export interface ProjectInfoField {
+    id: string;
+    label: string; // Tên trường (VD: "Bản vẽ hoàn công", "Mật khẩu cửa")
+    value: string; // Giá trị text
+    type: 'TEXT' | 'FILE';
+    attachment?: Attachment; // Nếu là File
+}
+
+
+export interface ProjectContact {
+    id: string;
+    role: string; // VD: "Chỉ huy trưởng", "Tổ đội điện nước", "Kỹ thuật"
+    name: string; // VD: "Nguyễn Văn A"
+    phone: string; // VD: "0912345678"
+    isWorkerLogin: boolean; // Cho phép số này đăng nhập giao diện Thợ
 }

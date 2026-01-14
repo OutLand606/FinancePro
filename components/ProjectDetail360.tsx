@@ -1,13 +1,13 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Project, Transaction, Contract, TransactionType, TransactionStatus, Attachment, Partner, UserContext, PriceRecord, ContractType, ProjectNote, PartnerType, ContractStatus, CashAccount } from '../types';
+import { Project, Transaction, Contract, TransactionType, TransactionStatus, Attachment, Partner, UserContext, PriceRecord, ContractType, ProjectNote, PartnerType, ContractStatus, CashAccount, ProjectRoadmap } from '../types';
 import { fetchPartners, createPartner } from '../services/masterDataService';
 import { updateProject, getSettings, createTransaction, updateTransaction } from '../services/sheetService';
 import { createContract } from '../services/contractService';
 import { fetchProjectBOQs } from '../services/procurementService';
 import { 
   X, Wallet, TrendingUp, TrendingDown, FileText, ShoppingCart, Building, CheckCircle2, LayoutDashboard, HardHat, Users, Calendar, MapPin, DollarSign, AlertTriangle, ArrowUpRight, ArrowDownLeft, Info,
-  Edit2, Clock, ExternalLink, Activity, Plus, Save, BookOpen, Send, Paperclip, MoreVertical, PauseCircle, StopCircle, PlayCircle, Briefcase, RefreshCw, Tag, Link as LinkIcon, Upload, Loader2, User, UserPlus, FileCheck
+  Edit2, Clock, ExternalLink, Activity, Plus, Save, BookOpen, Send, Paperclip, MoreVertical, PauseCircle, StopCircle, PlayCircle, Briefcase, RefreshCw, Tag, Link as LinkIcon, Upload, Loader2, User, UserPlus, FileCheck, Map, Construction
 } from 'lucide-react';
 import AttachmentViewer from './AttachmentViewer';
 import SmartProcurementTab from './SmartProcurementTab';
@@ -15,6 +15,9 @@ import ProjectPartnerInsights from './ProjectPartnerInsights';
 import ProjectHRTab from './ProjectHRTab';
 import TransactionForm from './TransactionForm'; // Reused for consistency
 import { Combobox } from './ui/Combobox';
+import { getProjectRoadmap } from '@/services/roadmapService';
+import ProjectRoadmapTab from "./ProjectRoadmapTab";
+
 
 interface ProjectDetail360Props {
   project: Project;
@@ -34,10 +37,11 @@ const ProjectDetail360: React.FC<ProjectDetail360Props> = ({
     project: initialProject, projects, transactions, contracts, partners: initialPartners, onAddTransaction, onUpdateProject, currentUser, onClose, priceRecords, accounts 
 }) => {
   const [project, setProject] = useState<Project>(initialProject);
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CASHFLOW' | 'HR' | 'PROCUREMENT' | 'CONTRACTS' | 'DOCS'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CASHFLOW' | 'HR' | 'PROCUREMENT' | 'CONTRACTS' | 'DOCS' | 'ROADMAP'>('OVERVIEW');
   const [partners, setPartners] = useState<Partner[]>(initialPartners);
   const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
   const [projectSheetUrl, setProjectSheetUrl] = useState('');
+  const [roadmapSummary, setRoadmapSummary] = useState<ProjectRoadmap | null>(null);
   
   // Transaction Modal State
   const [showTransModal, setShowTransModal] = useState(false);
@@ -90,6 +94,8 @@ const ProjectDetail360: React.FC<ProjectDetail360Props> = ({
         if (settings.googleSheets?.projectUrl) {
           setProjectSheetUrl(settings.googleSheets.projectUrl);
         }
+        // FETCH ROADMAP FOR SUMMARY
+        getProjectRoadmap(project.id).then(setRoadmapSummary);
       } catch (error) {
         console.error("Error loading project details dependencies:", error);
       }
@@ -370,6 +376,13 @@ const ProjectDetail360: React.FC<ProjectDetail360Props> = ({
       setNewLinkUrl('');
   };
 
+  
+  const handleProjectUpdateFromTab = async (updated: Project) => {
+    await updateProject(updated);
+    if (onUpdateProject) onUpdateProject(updated);
+    setProject(updated);
+  };
+
   const CostControlBar = ({ label, value, total, minGood, maxGood, color }: any) => {
       const percentage = total > 0 ? (value / total) * 100 : 0;
       let statusColor = 'bg-gray-200';
@@ -620,6 +633,57 @@ const ProjectDetail360: React.FC<ProjectDetail360Props> = ({
             </div>
         )}
 
+         {/* 2. ROADMAP SUMMARY (NEW) */}
+          {roadmapSummary && (
+            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                  <Construction size={18} className="text-orange-600" /> Tiến độ
+                  thi công
+                </h3>
+                <span className="bg-indigo-50 text-indigo-700 text-xs font-black px-3 py-1 rounded-full uppercase">
+                  {roadmapSummary.overallProgress}%
+                </span>
+              </div>
+              <div className="space-y-4">
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full transition-all duration-1000"
+                    style={{ width: `${roadmapSummary.overallProgress}%` }}
+                  ></div>
+                </div>
+                <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl">
+                  <div className="p-2 bg-white rounded-xl shadow-sm text-indigo-600">
+                    <Activity size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      Hoạt động mới nhất
+                    </p>
+                    <p className="text-sm font-bold text-slate-800 line-clamp-2 mt-1">
+                      {roadmapSummary.logs && roadmapSummary.logs.length > 0
+                        ? roadmapSummary.logs[0].content
+                        : "Chưa có nhật ký nào được ghi nhận."}
+                    </p>
+                    {roadmapSummary.logs && roadmapSummary.logs.length > 0 && (
+                      <p className="text-[10px] text-slate-400 mt-1 italic">
+                        {new Date(
+                          roadmapSummary.logs[0].timestamp
+                        ).toLocaleString("vi-VN")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab("ROADMAP")}
+                  className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold uppercase hover:bg-slate-50 hover:text-indigo-600 transition-colors"
+                >
+                  Xem chi tiết lộ trình
+                </button>
+              </div>
+            </div>
+          )}
+
         {/* MODAL: QUICK ADD CUSTOMER */}
         {showQuickAddCustomer && (
             <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
@@ -773,6 +837,7 @@ const ProjectDetail360: React.FC<ProjectDetail360Props> = ({
 
   const tabs = [
       { id: 'OVERVIEW', label: 'Tổng Quan 360', icon: LayoutDashboard },
+      { id: 'ROADMAP', label: 'Lộ trình / Nhật ký (Realtime)', icon: Map },
       { id: 'CASHFLOW', label: 'Sổ Thu Chi', icon: Wallet },
       { id: 'HR', label: 'Nhân Sự', icon: Users },
       { id: 'PROCUREMENT', label: 'Cung ứng (BOQ)', icon: ShoppingCart },
@@ -855,6 +920,14 @@ const ProjectDetail360: React.FC<ProjectDetail360Props> = ({
                 {activeTab === 'OVERVIEW' && renderOverview()}
                 {activeTab === 'CASHFLOW' && renderCashflow()}
                 {activeTab === 'HR' && <ProjectHRTab project={project} transactions={transactions} />}
+                {activeTab === 'ROADMAP' && (
+                    <ProjectRoadmapTab 
+                        project={project} 
+                        partners={partners} 
+                        currentUser={currentUser} 
+                        onUpdateProject={handleProjectUpdateFromTab} 
+                    />
+                )}
                 {activeTab === 'PROCUREMENT' && <SmartProcurementTab project={project} partners={partners} currentUser={currentUser} onAddTransaction={onAddTransaction} priceRecords={priceRecords} transactions={transactions} />}
                 {activeTab === 'DOCS' && renderDocs()}
                 {activeTab === 'CONTRACTS' && (
