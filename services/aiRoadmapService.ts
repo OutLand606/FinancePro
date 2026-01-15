@@ -1,7 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { RoadmapTemplate, RoadmapStage, RoadmapLog, ProjectRoadmap, StageStatus } from "../types";
-import { getSettings } from "./sheetService";
 import { GEMINI_API_KEY } from "@/constants";
 
 // --- CLIENT SETUP ---
@@ -13,10 +12,10 @@ const getAiClient = () => {
 
 // --- AI #1: TẠO LỘ TRÌNH TỰ ĐỘNG ---
 export interface RoadmapGenParams {
-    buildingType: string; // Nhà dân, Chung cư, Xưởng...
+    buildingType: string;
     floors: number;
     area: string;
-    systems: string[]; // Báo cháy, Chữa cháy, ...
+    systems: string[];
 }
 
 export const generateRoadmapTemplateAI = async (params: RoadmapGenParams): Promise<RoadmapTemplate | null> => {

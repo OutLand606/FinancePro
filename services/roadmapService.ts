@@ -1,14 +1,15 @@
-
+// services/roadmapService.ts
 import { 
     ProjectRoadmap, RoadmapTemplate, StageStatus, RoadmapLog, 
     LogType, RoadmapAccessLink, Attachment, RoadmapStage 
 } from '../types';
+import { api } from './api';
 
-const STORAGE_KEYS = {
-    ROADMAPS: 'finance_project_roadmaps',
-    TEMPLATES: 'finance_roadmap_templates' // NEW KEY
-};
+// Định nghĩa tên Collection trong DB Backend
+const COLLECTION_ROADMAPS = 'project_roadmaps';
+const COLLECTION_TEMPLATES = 'roadmap_templates';
 
+// Dữ liệu mẫu mặc định (Sẽ được ghi vào DB nếu chưa có)
 const DEFAULT_TEMPLATES: RoadmapTemplate[] = [
     {
         id: 'tpl_pccc_basic',
@@ -38,62 +39,74 @@ const DEFAULT_TEMPLATES: RoadmapTemplate[] = [
 
 // --- INTERNAL HELPERS ---
 
-const getLocalRoadmaps = (): ProjectRoadmap[] => {
-    try {
-        const s = localStorage.getItem(STORAGE_KEYS.ROADMAPS);
-        return s ? JSON.parse(s) : [];
-    } catch { return []; }
-};
-
-const saveLocalRoadmaps = (maps: ProjectRoadmap[]) => {
-    localStorage.setItem(STORAGE_KEYS.ROADMAPS, JSON.stringify(maps));
-};
-
 /**
- * MOCK AI: Tự động đoán Log thuộc về Stage nào
- * Dựa trên: Từ khóa trùng khớp hoặc Giai đoạn đang active
+ * Logic tự động gán Log vào Stage
  */
 const autoMapLogToStage = (content: string, stages: RoadmapStage[]): string | undefined => {
     const lowerContent = content.toLowerCase();
-    
-    // 1. Rule-based: Tìm theo từ khóa trong Title
     const matchedStage = stages.find(s => lowerContent.includes(s.title.toLowerCase()));
     if (matchedStage) return matchedStage.id;
-
-    // 2. Context-based: Gán vào giai đoạn đang chạy (IN_PROGRESS)
     const activeStage = stages.find(s => s.status === StageStatus.IN_PROGRESS);
     if (activeStage) return activeStage.id;
-
-    // 3. Fallback: Gán vào giai đoạn PENDING đầu tiên (Giả định là bắt đầu làm cái tiếp theo)
     const nextStage = stages.find(s => s.status === StageStatus.PENDING);
     if (nextStage) return nextStage.id;
-
     return undefined;
 };
 
-// --- EXPORTED SERVICES ---
+// --- EXPORTED SERVICES (API BASED) ---
 
-export const getRoadmapTemplates = (): RoadmapTemplate[] => {
-    const stored = localStorage.getItem(STORAGE_KEYS.TEMPLATES);
-    const customTemplates = stored ? JSON.parse(stored) : [];
-    return [...DEFAULT_TEMPLATES, ...customTemplates];
+// services/roadmapService.ts
+
+export const getRoadmapTemplates = async (): Promise<RoadmapTemplate[]> => {
+    try {
+        const res = await api.get<RoadmapTemplate[]>(`/${COLLECTION_TEMPLATES}`);
+        
+        // TRƯỜNG HỢP 1: Có dữ liệu từ Server -> Trả về bình thường
+        if (res.success && res.data && Array.isArray(res.data) && res.data.length > 0) {
+            return res.data;
+        }
+
+        // TRƯỜNG HỢP 2: Server trả về rỗng -> Tiến hành "Lưu ngầm" (Seeding)
+        console.log("Database chưa có Templates. Đang khởi tạo mẫu mặc định...");
+        
+        try {
+            // Gửi toàn bộ mảng DEFAULT_TEMPLATES lên để Backend lưu (Bulk Insert)
+            // Backend server.js của bạn đã có logic xử lý Array.isArray(body) nên việc này hợp lệ
+            await api.post(`/${COLLECTION_TEMPLATES}`, DEFAULT_TEMPLATES);
+            console.log("Đã lưu mẫu mặc định vào Database thành công.");
+        } catch (seedError) {
+            console.error("Lỗi khi lưu mẫu mặc định (không ảnh hưởng hiển thị):", seedError);
+        }
+
+        // Trả về dữ liệu mặc định để hiển thị ngay lập tức
+        return DEFAULT_TEMPLATES; 
+
+    } catch (error) {
+        console.error("Error fetching templates:", error);
+        // Nếu lỗi mạng hoặc lỗi Server, vẫn trả về default để App không bị trắng trang
+        return DEFAULT_TEMPLATES;
+    }
 };
 
-export const saveRoadmapTemplate = (template: RoadmapTemplate) => {
-    const stored = localStorage.getItem(STORAGE_KEYS.TEMPLATES);
-    const customTemplates = stored ? JSON.parse(stored) : [];
-    localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify([template, ...customTemplates]));
+export const saveRoadmapTemplate = async (template: RoadmapTemplate): Promise<void> => {
+    // Lưu template mới vào DB
+    await api.post(`/${COLLECTION_TEMPLATES}`, template);
 };
 
 export const getProjectRoadmap = async (projectId: string): Promise<ProjectRoadmap | null> => {
-    // Simulate Network Delay
-    await new Promise(r => setTimeout(r, 200));
-    const maps = getLocalRoadmaps();
-    return maps.find(m => m.projectId === projectId) || null;
+    // Query backend: select * from records where collection='project_roadmaps' and data->>'projectId' = projectId
+    // Backend generic của bạn hỗ trợ query params để filter JSON
+    const res = await api.get<ProjectRoadmap[]>(`/${COLLECTION_ROADMAPS}`, { projectId });
+    
+    if (res.success && res.data && res.data.length > 0) {
+        return res.data[0]; // Lấy bản ghi đầu tiên khớp projectId
+    }
+    return null;
 };
 
 export const createRoadmapFromTemplate = async (projectId: string, templateId: string): Promise<ProjectRoadmap> => {
-    const templates = getRoadmapTemplates();
+    // 1. Lấy danh sách template (có thể từ API hoặc biến local nếu đã cache)
+    const templates = await getRoadmapTemplates();
     const tpl = templates.find(t => t.id === templateId);
     if (!tpl) throw new Error("Template not found");
 
@@ -116,24 +129,14 @@ export const createRoadmapFromTemplate = async (projectId: string, templateId: s
         }))
     };
 
-    const maps = getLocalRoadmaps();
-    // Replace if exists, else add
-    const filtered = maps.filter(m => m.projectId !== projectId);
-    saveLocalRoadmaps([...filtered, newRoadmap]);
+    // 2. Gọi API tạo mới
+    await api.post(`/${COLLECTION_ROADMAPS}`, newRoadmap);
     return newRoadmap;
 };
 
-// --- NEW HELPERS FOR ROADMAP MANAGEMENT ---
-
 export const saveProjectRoadmap = async (roadmap: ProjectRoadmap): Promise<void> => {
-    const maps = getLocalRoadmaps();
-    const index = maps.findIndex(m => m.id === roadmap.id);
-    if (index >= 0) {
-        maps[index] = roadmap;
-    } else {
-        maps.push(roadmap);
-    }
-    saveLocalRoadmaps(maps);
+    // Update toàn bộ object roadmap
+    await api.put(`/${COLLECTION_ROADMAPS}/${roadmap.id}`, roadmap);
 };
 
 export const addNewStageToRoadmap = async (roadmap: ProjectRoadmap, title: string): Promise<ProjectRoadmap> => {
@@ -158,7 +161,7 @@ export const addNewStageToRoadmap = async (roadmap: ProjectRoadmap, title: strin
 };
 
 /**
- * CORE FUNCTION: Thêm Nhật ký (Log) & Tự động cập nhật Trạng thái (Stage)
+ * CORE FUNCTION: Thêm Log - Cần fetch data mới nhất từ server trước khi update để tránh conflict
  */
 export const addRoadmapLog = async (
     projectId: string, 
@@ -169,16 +172,14 @@ export const addRoadmapLog = async (
     manualStageId?: string,
     logType: LogType = LogType.WORK_REPORT
 ): Promise<ProjectRoadmap> => {
-    const maps = getLocalRoadmaps();
-    const mapIndex = maps.findIndex(m => m.projectId === projectId);
-    if (mapIndex === -1) throw new Error("Roadmap not found. Please create one first.");
+    
+    // 1. Fetch latest version from DB
+    const map = await getProjectRoadmap(projectId);
+    if (!map) throw new Error("Roadmap not found on server.");
 
-    const map = maps[mapIndex];
-
-    // 1. Determine Stage (Manual or Auto-AI)
+    // 2. Logic xử lý Stage
     const targetStageId = manualStageId || autoMapLogToStage(content, map.stages);
 
-    // 2. Create Log Object
     const newLog: RoadmapLog = {
         id: `log_${Date.now()}`,
         projectId,
@@ -193,100 +194,81 @@ export const addRoadmapLog = async (
         photos,
         type: logType,
         isHighlighted: true,
-        status: 'APPROVED' // Auto-approve for now
+        status: 'APPROVED'
     };
 
-    // 3. Append Log (Newest first)
     map.logs = [newLog, ...map.logs];
     map.lastUpdated = new Date().toISOString();
 
-    // 4. INFER STAGE STATUS (Logic suy diễn trạng thái)
+    // 3. Logic suy diễn trạng thái (Status Inference)
     if (targetStageId) {
         const stageIndex = map.stages.findIndex(s => s.id === targetStageId);
         if (stageIndex >= 0) {
             const currentStatus = map.stages[stageIndex].status;
             
-            // Rule 1: Có Log -> Chuyển sang IN_PROGRESS (nếu đang Pending)
             if (currentStatus === StageStatus.PENDING) {
                 map.stages[stageIndex].status = StageStatus.IN_PROGRESS;
-                // Auto-start date
                 if (!map.stages[stageIndex].startDate) {
                     map.stages[stageIndex].startDate = new Date().toISOString();
                 }
             }
-
-            // Rule 2: Log là Nghiệm thu (ACCEPTANCE) -> Chuyển sang COMPLETED
             if (logType === LogType.ACCEPTANCE) {
                 map.stages[stageIndex].status = StageStatus.COMPLETED;
                 map.stages[stageIndex].endDate = new Date().toISOString();
             }
-
-            // Rule 3: Log là Sự cố (ISSUE) -> Chuyển sang BLOCKED
             if (logType === LogType.ISSUE_REPORT) {
                 map.stages[stageIndex].status = StageStatus.BLOCKED;
             }
         }
     }
 
-    // 5. Recalculate Overall Progress
+    // 4. Tính toán lại Progress
     const totalWeight = map.stages.reduce((sum, s) => sum + (s.weightPercent || 0), 0);
     const completedWeight = map.stages
         .filter(s => s.status === StageStatus.COMPLETED)
         .reduce((sum, s) => sum + (s.weightPercent || 0), 0);
-    
-    // Weighted progress + partial progress for IN_PROGRESS items (assumed 50%)
     const inProgressWeight = map.stages
         .filter(s => s.status === StageStatus.IN_PROGRESS)
         .reduce((sum, s) => sum + ((s.weightPercent || 0) * 0.5), 0);
 
     map.overallProgress = totalWeight > 0 ? Math.round(((completedWeight + inProgressWeight) / totalWeight) * 100) : 0;
 
-    // Save
-    maps[mapIndex] = map;
-    saveLocalRoadmaps(maps);
+    // 5. Lưu ngược lại Server
+    await saveProjectRoadmap(map);
     return map;
 };
 
-// --- REPORT HELPERS ---
-
+// --- REPORT HELPERS (Không đổi logic) ---
 export const groupLogsByDate = (logs: RoadmapLog[]) => {
     const groups: Record<string, RoadmapLog[]> = {};
     logs.forEach(log => {
-        // Parse ISO string safely
         const date = log.timestamp.split('T')[0]; 
         if (!groups[date]) groups[date] = [];
         groups[date].push(log);
     });
-    // Sort descending by date (Newest days first)
     return Object.entries(groups).sort((a,b) => b[0].localeCompare(a[0]));
 };
 
 // --- ACCESS LINKS ---
-
 export const generateAccessLink = async (projectId: string, role: 'CUSTOMER' | 'WORKER', label?: string): Promise<string> => {
-    // In real app, create a JWT or UUID token in DB
+    const map = await getProjectRoadmap(projectId);
+    if (!map) throw new Error("Roadmap not found");
+
     const token = `access_${role.toLowerCase()}_${projectId.slice(-4)}_${Math.random().toString(36).substr(2,8)}`;
     
-    const maps = getLocalRoadmaps();
-    const mapIndex = maps.findIndex(m => m.projectId === projectId);
+    const linkObj: RoadmapAccessLink = {
+        token,
+        projectId,
+        role,
+        label: label || (role === 'CUSTOMER' ? 'Khách mời' : 'Tổ đội'),
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: true
+    };
     
-    if (mapIndex >= 0) {
-        const linkObj: RoadmapAccessLink = {
-            token,
-            projectId,
-            role,
-            label: label || (role === 'CUSTOMER' ? 'Khách mời' : 'Tổ đội'),
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-            isActive: true
-        };
-        
-        const map = maps[mapIndex];
-        map.accessLinks = [...(map.accessLinks || []), linkObj];
-        saveLocalRoadmaps(maps);
-    }
+    map.accessLinks = [...(map.accessLinks || []), linkObj];
+    await saveProjectRoadmap(map);
 
     const baseUrl = window.location.origin;
-    // URL Format: /?token=...&mode=roadmap
     return `${baseUrl}/?token=${token}&mode=roadmap`;
 };

@@ -29,8 +29,21 @@ const ProjectRoadmapTab: React.FC<ProjectRoadmapTabProps> = ({ project, partners
     const [isLoading, setIsLoading] = useState(false);
     
     // Setup State
-    const [templates, setTemplates] = useState(getRoadmapTemplates());
-    const [selectedTemplate, setSelectedTemplate] = useState(templates[0]?.id);
+    const [templates, setTemplates] = useState<RoadmapTemplate[]>([]);
+    const [selectedTemplate, setSelectedTemplate] = useState('')
+
+    useEffect(() => {
+        const fetchTemplates = async () => {
+            const tpls = await getRoadmapTemplates();
+            if (Array.isArray(tpls)) {
+                setTemplates(tpls);
+                if (tpls.length > 0) setSelectedTemplate(tpls[0].id);
+            } else {
+                setTemplates([]);
+            }
+        };
+        fetchTemplates();
+    }, []);
     
     // AI Gen State
     const [showAiGen, setShowAiGen] = useState(false);
@@ -89,6 +102,9 @@ const ProjectRoadmapTab: React.FC<ProjectRoadmapTabProps> = ({ project, partners
         try {
             const tpl = await generateRoadmapTemplateAI(aiParams);
             if (tpl) {
+                // Lưu template AI vào DB luôn để dùng lại sau này (Tuỳ chọn)
+                await saveRoadmapTemplate(tpl);
+                
                 setTemplates(prev => [tpl, ...prev]);
                 setSelectedTemplate(tpl.id);
                 setShowAiGen(false);
