@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Partner, PartnerType, Project, Transaction, Contract, PartnerPerformance } from '../types';
+import { Partner, PartnerType, Project, Transaction, Contract, PartnerPerformance, UserContext } from '../types';
 import { createPartner, updatePartner, fetchPartners } from '../services/masterDataService';
 import { analyzePartner } from '../services/partnerAnalysisService';
 import { 
@@ -17,11 +17,12 @@ interface CustomerManagerProps {
     projects: Project[];
     transactions: Transaction[];
     contracts: Contract[];
+    currentUser: UserContext;
 }
 
 const DRAFT_KEY = 'finance_customer_form_draft';
 
-const CustomerManager: React.FC<CustomerManagerProps> = ({ partners, projects, transactions, contracts }) => {
+const CustomerManager: React.FC<CustomerManagerProps> = ({ partners, projects, transactions, contracts, currentUser }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [viewingCustomer, setViewingCustomer] = useState<Partner | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -38,6 +39,25 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({ partners, projects, t
     useEffect(() => {
         refreshData();
     }, [partners]); // Sync when props change, but also fetch fresh from storage
+
+    const { canViewAll, myCustomerIds } = useMemo(() => {
+        const perms = currentUser?.permissions || [];
+        // Admin hoặc có quyền xem tất cả khách hàng/dự án
+        const isSysAdmin = perms.includes('SYS_ADMIN');
+        const canViewAll = isSysAdmin || perms.includes('CUSTOMER_VIEW_ALL') || perms.includes('PROJECT_VIEW_ALL');
+
+        if (canViewAll) return { canViewAll: true, myCustomerIds: [] };
+
+        // Nếu chỉ xem của mình: Lọc các dự án mình làm PM hoặc Sales
+        const myProjects = projects.filter(p => 
+            p.managerEmpId === currentUser.id || 
+            (p.salesEmpIds || []).includes(currentUser.id)
+        );
+
+        // Lấy danh sách ID khách hàng từ các dự án đó
+        const customerIds = myProjects.map(p => p.customerId).filter((id): id is string => !!id);
+        return { canViewAll: false, myCustomerIds: customerIds };
+    }, [currentUser, projects]);
 
     const refreshData = async () => {
         setIsLoading(true);
@@ -98,6 +118,13 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({ partners, projects, t
 
     const filteredCustomers = useMemo(() => {
         return analyzedCustomers.filter(item => {
+            // --- BỔ SUNG KIỂM TRA QUYỀN ---
+            // Nếu không có quyền xem tất cả VÀ Khách này không nằm trong danh sách dự án của tôi -> Ẩn luôn
+            if (!canViewAll && !myCustomerIds.includes(item.id)) {
+                return false;
+            }
+            // -----------------------------
+
             const matchesSearch = (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                                   (item.phone && item.phone.includes(searchTerm)) || 
                                   (item.code || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -105,7 +132,7 @@ const CustomerManager: React.FC<CustomerManagerProps> = ({ partners, projects, t
             const matchesRisk = filterRisk === 'ALL' || item.stats.riskLevel === filterRisk;
             return matchesSearch && matchesRisk;
         });
-    }, [analyzedCustomers, searchTerm, filterRisk]);
+    }, [analyzedCustomers, searchTerm, filterRisk, canViewAll, myCustomerIds]); // <--- Thêm dependency
 
     const handleSave = async () => {
         if (!formData.name) {

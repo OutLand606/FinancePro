@@ -120,15 +120,16 @@ export interface CashAccount {
 }
 
 export interface UserContext {
-    id: string;
-    name: string;
-    email: string;
-    roleId: string;
-    roleName: string;
-    permissions: string[];
-    managedProjectIds: string[];
-    isAuthenticated: boolean;
+    id?: string;
+    name?: string;
+    email?: string;
+    roleId?: string;
+    roleName?: string;
+    permissions?: string[];
+    managedProjectIds?: string[];
+    isAuthenticated?: boolean;
     avatarUrl?: string;
+    role?: any;
 }
 
 export interface Attachment {

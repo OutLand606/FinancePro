@@ -60,7 +60,7 @@ export const APP_MODULES: AppModuleDefinition[] = [
         label: 'Khách hàng & CĐT',
         enabled: true,
         icon: Contact,
-        component: (props: GlobalDataProps) => <CustomerManager partners={props.partners} projects={props.projects} transactions={props.transactions} contracts={props.contracts || []} />
+        component: (props: GlobalDataProps) => <CustomerManager partners={props.partners} projects={props.projects} transactions={props.transactions} contracts={props.contracts || []} currentUser={props.currentUser}/>
     },
     {
         key: 'office',

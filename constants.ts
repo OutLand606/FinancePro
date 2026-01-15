@@ -125,5 +125,3 @@ export const INITIAL_ASSETS: Asset[] = [
 ];
 
 export const INITIAL_INVENTORY: InventoryItem[] = [];
-
-export const GEMINI_API_KEY = 'AIzaSyBBgth-NCxKrggnbzgD1kWGFGvJYmayNc4'

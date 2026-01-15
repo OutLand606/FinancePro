@@ -117,7 +117,7 @@ const ProjectRoadmapTab: React.FC<ProjectRoadmapTabProps> = ({ project, partners
         }
     };
 
-    const handleSaveNewTemplate = () => {
+    const handleSaveNewTemplate = async () => {
         if (!newTemplateName) return alert("Vui lòng nhập tên mẫu");
         const validStages = newTemplateStages.filter(s => s.title.trim() !== '');
         if (validStages.length === 0) return alert("Vui lòng nhập ít nhất 1 giai đoạn");
@@ -132,7 +132,7 @@ const ProjectRoadmapTab: React.FC<ProjectRoadmapTabProps> = ({ project, partners
             }))
         };
         saveRoadmapTemplate(tpl);
-        setTemplates(getRoadmapTemplates());
+        setTemplates( await getRoadmapTemplates());
         setSelectedTemplate(tpl.id);
         setShowCreateTemplate(false);
         setNewTemplateName('');
