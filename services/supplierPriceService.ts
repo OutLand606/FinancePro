@@ -3,12 +3,24 @@ import { PriceRecord, DataSource, Transaction, TransactionType, TransactionStatu
 import { fetchMaterialMaster } from './masterDataService';
 import { GoogleGenAI } from "@google/genai";
 import { api } from './api';
-import { GEMINI_API_KEY } from '@/constants';
 
 const getAiClient = async () => {
-    const apiKey = GEMINI_API_KEY
-    if (!apiKey) throw new Error("Vui lòng cấu hình Gemini API Key trong phần Cài đặt hệ thống.");
-    return new GoogleGenAI({ apiKey });
+    try {
+        const res: any = await api.get<{apiKey: string}>('/api/gemini-key');
+        const apiKey = (res.success && res.apiKey) ? res.apiKey : '';
+        const modelName = (res.success && res.model) ? res.model : 'gemini-3-flash-preview';
+        if (!apiKey) {
+            throw new Error("Key chưa được cấu hình trong hệ thống.");
+        }
+        return {
+            ai: new GoogleGenAI({ apiKey }),
+            model: modelName
+        };
+        
+    } catch (error) {
+        console.error("AI Client Init Error:", error);
+        throw new Error("⛔ LỖI CẤU HÌNH: Chưa nhập Gemini API Key.\nVui lòng vào Cấu hình > Google Integration để kích hoạt AI.");
+    }
 };
 
 export const fetchPriceRecords = async (): Promise<PriceRecord[]> => {
@@ -18,7 +30,7 @@ export const fetchPriceRecords = async (): Promise<PriceRecord[]> => {
 
 // --- AI ENGINE: BÓC TÁCH ĐƠN GIÁ TỐI ƯU ---
 const extractPriceInfoFromDesc = async (description: string, amount: number): Promise<{qty: number, unit: string, price: number} | null> => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
     const prompt = `
         Bạn là kế toán công trường. Hãy bóc tách đơn giá từ nội dung: "${description}". Tổng tiền: ${amount}.
         Yêu cầu trả về JSON: {"qty": number, "unit": "string", "price": number}. 
@@ -27,7 +39,7 @@ const extractPriceInfoFromDesc = async (description: string, amount: number): Pr
         Chỉ trả về JSON.
     `;
     try {
-        const res = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+        const res = await ai.models.generateContent({ model: model, contents: prompt });
         const text = res.text || '';
         const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanJson);

@@ -2,20 +2,34 @@
 import { GoogleGenAI } from "@google/genai";
 import { Project, Transaction, TransactionType, MaterialEstimation, PriceRecord, Partner, PartnerPerformance, Office } from '../types';
 import { getAIKnowledge } from './aiKnowledgeService';
-import { GEMINI_API_KEY } from "@/constants";
+import { api } from "./api";
 
 const getAiClient = async () => {
-    const apiKey = GEMINI_API_KEY
-    if (!apiKey) throw new Error("⛔ LỖI CẤU HÌNH: Chưa nhập Gemini API Key.\nVui lòng vào Cấu hình > Google Integration để kích hoạt AI.");
-    return new GoogleGenAI({ apiKey });
+    try {
+        const res: any = await api.get<{apiKey: string}>('/api/gemini-key');
+        const apiKey = (res.success && res.apiKey) ? res.apiKey : '';
+        const modelName = (res.success && res.model) ? res.model : 'gemini-3-flash-preview';
+        if (!apiKey) {
+            throw new Error("Key chưa được cấu hình trong hệ thống.");
+        }
+
+        return {
+            ai: new GoogleGenAI({ apiKey }),
+            model: modelName
+        };
+        
+    } catch (error) {
+        console.error("AI Client Init Error:", error);
+        throw new Error("⛔ LỖI CẤU HÌNH: Chưa nhập Gemini API Key.\nVui lòng vào Cấu hình > Google Integration để kích hoạt AI.");
+    }
 };
 
 // --- SYSTEM CHECK: Dùng để test kết nối ở màn hình Cấu hình ---
 export const testGeminiConnection = async (): Promise<boolean> => {
     try {
-        const ai = await getAiClient();
+        const {ai, model} = await getAiClient();
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: model,
             contents: "Ping. Reply with 'Pong' only.",
         });
         return !!response.text;
@@ -29,7 +43,7 @@ export const analyzeProjectFinances = async (
   project: Project,
   transactions: Transaction[]
 ): Promise<string> => {
-  const ai = await getAiClient();
+  const {ai, model} = await getAiClient();
   const knowledge = getAIKnowledge(); // LOAD TRÍ NHỚ ĐÃ HỌC TỪ CÁC DỰ ÁN KHÁC
 
   const projectTrans = transactions.filter(t => t.projectId === project.id);
@@ -68,8 +82,8 @@ export const analyzeProjectFinances = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
+        model: model,
+        contents: "Ping. Reply with 'Pong' only.",
     });
     return response.text || "Không thể tạo phân tích vào lúc này.";
   } catch (error: any) {
@@ -84,7 +98,7 @@ export const generateProjectStrategy = async (
     estimations: MaterialEstimation[],
     priceRecords: PriceRecord[]
 ): Promise<any> => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
     const knowledge = getAIKnowledge(); // LOAD TRÍ NHỚ
 
     // Prepare context data
@@ -137,9 +151,8 @@ export const generateProjectStrategy = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
+            model: model,
+            contents: "Ping. Reply with 'Pong' only.",
         });
         
         return JSON.parse(response.text || '{}');
@@ -154,7 +167,7 @@ export const generatePartnerInsight = async (
     partner: Partner,
     stats: PartnerPerformance
 ): Promise<string> => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
 
     const prompt = `
         Bạn là Chuyên gia Quản trị Quan hệ Khách hàng (CRM) & Tài chính.
@@ -178,8 +191,8 @@ export const generatePartnerInsight = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
+            model: model,
+            contents: "Ping. Reply with 'Pong' only.",
         });
         return response.text || "Chưa đủ dữ liệu để AI phân tích.";
     } catch (error) {
@@ -193,7 +206,7 @@ export const generateSalaryFormula = async (
     description: string,
     availableVariables: { code: string; label: string }[]
 ): Promise<string> => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
 
     const varList = availableVariables.map(v => `- ${v.label}: {${v.code}}`).join('\n');
 
@@ -216,8 +229,8 @@ export const generateSalaryFormula = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
+            model: model,
+            contents: "Ping. Reply with 'Pong' only.",
         });
         return response.text?.trim() || "";
     } catch (error) {
@@ -231,7 +244,7 @@ export const generateStoreIntelligence = async (
     office: Office,
     transactions: Transaction[]
 ): Promise<any> => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
     const knowledge = getAIKnowledge(); // LOAD TRÍ NHỚ CÔNG TY
 
     // 1. Pre-process Data (Minimizing tokens while maximizing context)
@@ -279,7 +292,7 @@ export const generateStoreIntelligence = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: model,
             contents: prompt,
             config: { responseMimeType: "application/json" }
         });
@@ -296,7 +309,7 @@ export const generateSmartAssistantInsights = async (
     role: 'ACCOUNTANT' | 'DIRECTOR',
     transactions: Transaction[]
 ): Promise<any> => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
     const knowledge = getAIKnowledge(); // Load trí nhớ hệ thống
     
     // Slice last 50 transactions for context
@@ -344,7 +357,7 @@ export const generateSmartAssistantInsights = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: model,
             contents: prompt,
             config: { responseMimeType: "application/json" }
         });

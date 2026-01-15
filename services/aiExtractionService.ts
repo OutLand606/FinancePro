@@ -2,12 +2,25 @@
 import { DocumentValidation, MaterialEstimation, EstimationStatus } from '../types';
 import { getAIKnowledge } from './aiKnowledgeService';
 import { GoogleGenAI } from "@google/genai";
-import { GEMINI_API_KEY } from '@/constants';
+import { api } from "./api";
 
 const getAiClient = async () => {
-    const apiKey = GEMINI_API_KEY
-    if (!apiKey) throw new Error("Vui lòng cấu hình Gemini API Key trong phần Cài đặt hệ thống.");
-    return new GoogleGenAI({ apiKey });
+    try {
+        const res: any = await api.get<{apiKey: string}>('/api/gemini-key');
+        const apiKey = (res.success && res.apiKey) ? res.apiKey : '';
+        const modelName = (res.success && res.model) ? res.model : 'gemini-3-flash-preview';
+        if (!apiKey) {
+            throw new Error("Key chưa được cấu hình trong hệ thống.");
+        }
+        return {
+            ai: new GoogleGenAI({ apiKey }),
+            model: modelName
+        };
+        
+    } catch (error) {
+        console.error("AI Client Init Error:", error);
+        throw new Error("⛔ LỖI CẤU HÌNH: Chưa nhập Gemini API Key.\nVui lòng vào Cấu hình > Google Integration để kích hoạt AI.");
+    }
 };
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -25,7 +38,8 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 // --- NEW: EXTRACT TIMESHEET ---
 export const extractTimesheetFromImage = async (file: File, month: string): Promise<any[]> => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
+
     try {
         const base64Data = await fileToBase64(file);
         const prompt = `
@@ -56,7 +70,7 @@ export const extractTimesheetFromImage = async (file: File, month: string): Prom
         `;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: model,
             contents: {
                 parts: [
                     { inlineData: { mimeType: file.type, data: base64Data } },
@@ -76,7 +90,7 @@ export const extractTimesheetFromImage = async (file: File, month: string): Prom
 
 // --- NEW: PARSE TEXT COMMAND ---
 export const parseTransactionFromText = async (textCommand: string) => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
     
     try {
         const prompt = `
@@ -102,7 +116,7 @@ export const parseTransactionFromText = async (textCommand: string) => {
         `;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: model,
             contents: prompt
         });
 
@@ -116,7 +130,7 @@ export const parseTransactionFromText = async (textCommand: string) => {
 };
 
 export const extractTransactionFromImage = async (file: File) => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
     
     try {
         const base64Data = await fileToBase64(file);
@@ -138,7 +152,7 @@ export const extractTransactionFromImage = async (file: File) => {
         `;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: model,
             contents: {
                 parts: [
                     { inlineData: { mimeType: file.type, data: base64Data } },
@@ -157,7 +171,7 @@ export const extractTransactionFromImage = async (file: File) => {
 };
 
 export const extractBOQDataWithGemini = async (file: File, projectId: string): Promise<MaterialEstimation[]> => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
     const coreKnowledge = getAIKnowledge();
     const wasteContext = JSON.stringify(coreKnowledge.wasteCoefficients);
     const edgeKeywords = coreKnowledge.edgeMaterialKeywords.join(', ');
@@ -171,7 +185,7 @@ export const extractBOQDataWithGemini = async (file: File, projectId: string): P
             Bóc tách danh mục vật tư từ BOQ đính kèm. Trả về JSON: { "estimations": [{ "rawName": string, "unit": string, "estimatedQty": number }] }
         `;
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: model,
             contents: { parts: [{ inlineData: { mimeType: file.type, data: base64Data } }, { text: prompt }] }
         });
         const text = response.text || '';
@@ -192,12 +206,12 @@ export const extractBOQDataWithGemini = async (file: File, projectId: string): P
 };
 
 export const extractInvoiceDataWithGemini = async (file: File, docId: string): Promise<{lineItems: any[], validation: DocumentValidation}> => {
-    const ai = await getAiClient();
+    const {ai, model} = await getAiClient();
     try {
         const base64Data = await fileToBase64(file);
         const prompt = `Bạn là chuyên gia kế toán xây dựng. Hãy phân tích hóa đơn/báo giá. Chỉ trả về JSON duy nhất: { "items": [{ "rawName": string, "rawUnit": string, "rawQty": number, "rawPrice": number }], "validation": { "isValid": boolean, "riskLevel": "LOW"|"MEDIUM"|"HIGH", "issues": string[], "detectedType": string, "confidence": number } }`;
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: model,
             contents: { parts: [{ inlineData: { mimeType: file.type, data: base64Data } }, { text: prompt }] }
         });
         const text = response.text || '';

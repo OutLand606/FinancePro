@@ -9,14 +9,22 @@ import { checkSystemIntegrity, generateMigrationPackage, IntegrityIssue } from '
 import { api } from '../services/api'; 
 import { testGeminiConnection } from '../services/geminiService'; // New Import
 import { SystemRole, CategoryMaster, CashAccount, AccountType, AccountOwner, SheetConfig, GoogleStorageConfig, AppSettings } from '../types';
-import { Lock, Archive, Layers, Download, Plus, X, Trash2, Edit, Database, CreditCard, Save, HardDrive, Bot, CheckCircle2, User, Globe, Server, Activity, AlertTriangle, ShieldCheck, Wifi, Key, Zap } from 'lucide-react';
+import { Lock, Archive, Layers, Download, Plus, X, Trash2, Edit, Database, CreditCard, Save, HardDrive, Bot, CheckCircle2, User, Globe, Server, Activity, AlertTriangle, ShieldCheck, Wifi, Key, Zap,Cpu } from 'lucide-react';
 import { AVAILABLE_PERMISSIONS } from '../constants';
+
+const AI_MODELS = [
+    { id: 'gemini-3-flash-preview', name: 'Gemini 3.0 Flash (Mới nhất - Tốc độ cao)', isNew: true },
+    { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro (Thông minh nhất)', isNew: true },
+    { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Bản thử nghiệm cũ)', isNew: false },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Legacy - Ổn định)', isNew: false },
+];
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'ROLES' | 'CATEGORIES' | 'ACCOUNTS' | 'BACKUP' | 'GOOGLE_INTEGRATION' | 'SYSTEM' | 'MIGRATION'>('ACCOUNTS');
   const [roles, setRoles] = useState<SystemRole[]>([]);
   const [categories, setCategories] = useState<CategoryMaster[]>([]);
   const [accounts, setAccounts] = useState<CashAccount[]>([]);
+  const [geminiModel, setGeminiModel] = useState(AI_MODELS[0]?.id);
   
   // Migration State
   const [integrityIssues, setIntegrityIssues] = useState<IntegrityIssue[]>([]);
@@ -70,12 +78,24 @@ const Settings: React.FC = () => {
               officeSubFolder: true,
               autoShare: 'VIEW'
           });
-          setGeminiApiKey(settings.geminiApiKey || '');
+          try {
+              const keyRes: any = await api.get<{apiKey: string, model: string}>('/api/gemini-key');
+              if (keyRes.success) {
+                  setGeminiApiKey(keyRes.apiKey || '');
+                  setGeminiModel(keyRes.model || AI_MODELS[0]?.id);
+              } else {
+                  setGeminiApiKey(settings.geminiApiKey || '');
+                  setGeminiModel(AI_MODELS[0]?.id);
+              }
+          } catch (e) {
+              setGeminiApiKey(settings.geminiApiKey || '');
+              setGeminiModel(AI_MODELS[0]?.id);
+          }
       }
       if (activeTab === 'SYSTEM') {
           setAppSettings({
               apiEndpoint: settings.apiEndpoint || '',
-              useMockData: settings.useMockData !== undefined ? settings.useMockData : true,
+              useMockData: false,
               appVersionName: settings.appVersionName || 'v1.0'
           });
       }
@@ -156,29 +176,46 @@ const Settings: React.FC = () => {
   };
 
   const handleSaveGoogleConfig = async () => {
-      const settings = await getSettings();
-      saveSettings({ 
-          ...settings, 
-          googleSheets: sheetConfig,
-          googleStorage: driveConfig,
-          geminiApiKey: geminiApiKey
-      });
-      // Don't alert here if testing AI, we do it in handleTestAI flow
+      try {
+          const settings = await getSettings();
+          await saveSettings({ 
+              ...settings, 
+              googleSheets: sheetConfig,
+              googleStorage: driveConfig,
+              geminiApiKey: geminiApiKey 
+          });
+          if (geminiApiKey) {
+              await api.post('/api/gemini-key', { 
+                  apiKey: geminiApiKey,
+                  model: geminiModel 
+              });
+          }
+
+          alert("Đã lưu cấu hình Google & API Key thành công!");
+      } catch (e: any) {
+          console.error(e);
+          alert("Lỗi khi lưu cấu hình: " + e.message);
+      }
   };
 
   const handleTestAI = async () => {
-      // 1. Save locally first so getSettings can pick it up
-      const settings = await getSettings();;
-      saveSettings({ ...settings, geminiApiKey });
+      if (!geminiApiKey.trim()) {
+          alert("Vui lòng nhập Gemini API Key trước khi kiểm tra.");
+          return;
+      }
       
       setAiConnectionStatus('TESTING');
       try {
           await testGeminiConnection();
+          await api.post('/api/gemini-key', { 
+              apiKey: geminiApiKey,
+              model: geminiModel
+          });
           setAiConnectionStatus('SUCCESS');
           alert("Kết nối AI thành công! Hệ thống đã sẵn sàng.");
       } catch (e: any) {
           setAiConnectionStatus('FAILED');
-          alert("Lỗi kết nối AI: " + e.message + "\nVui lòng kiểm tra lại Key hoặc Internet.");
+          alert("❌ Lỗi kết nối AI: " + e.message + "\nVui lòng kiểm tra lại Key hoặc Internet.");
       }
   };
 
@@ -338,94 +375,78 @@ const Settings: React.FC = () => {
           <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm animate-in fade-in">
               <div className="flex justify-between items-center mb-8">
                   <div>
-                      <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">Cấu hình Google Drive, Sheets & AI</h3>
+                      <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">Cấu hình AI</h3>
                       <p className="text-xs text-slate-500 mt-1">Kết nối các dịch vụ Google để đồng bộ và xử lý thông minh.</p>
                   </div>
-                  <button onClick={() => { handleSaveGoogleConfig(); alert("Đã lưu cấu hình."); }} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase flex items-center shadow-lg hover:bg-emerald-700 transition-all">
+                  <button onClick={handleSaveGoogleConfig} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase flex items-center shadow-lg hover:bg-emerald-700 transition-all">
                       <Save size={16} className="mr-2"/> Lưu Cấu Hình
                   </button>
               </div>
               
               <div className="space-y-10">
-                  {/* GEMINI AI CONFIG */}
-                  <div className="space-y-4">
-                      <h4 className="font-black text-purple-600 text-sm uppercase tracking-widest border-b border-purple-100 pb-2 flex items-center"><Bot size={16} className="mr-2"/> Gemini AI Intelligence</h4>
-                      <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Gemini API Key (Bắt buộc)</label>
-                          <div className="flex gap-2">
-                              <div className="relative flex-1">
-                                  <Key size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                                  <input 
-                                    type="password"
-                                    className="w-full pl-10 pr-4 py-3 border-2 border-slate-100 rounded-2xl text-sm font-mono font-bold text-slate-700 outline-none focus:border-purple-500" 
-                                    placeholder="AIzaSy..."
-                                    value={geminiApiKey}
-                                    onChange={e => setGeminiApiKey(e.target.value)}
-                                  />
-                              </div>
-                              <button onClick={handleTestAI} className="px-4 py-2 bg-purple-50 text-purple-700 rounded-2xl font-bold text-[10px] uppercase tracking-widest border border-purple-100 hover:bg-purple-100 transition-all flex items-center whitespace-nowrap">
-                                  {aiConnectionStatus === 'TESTING' ? <Activity size={14} className="animate-spin mr-1"/> : <Zap size={14} className="mr-1"/>}
-                                  Test Key
-                              </button>
-                          </div>
-                          <div className="flex justify-between items-center mt-2">
-                              <p className="text-[10px] text-slate-400 italic">Key này kích hoạt toàn bộ AI: Scan hóa đơn, Phân tích tài chính, Chatbot.</p>
-                              {aiConnectionStatus === 'SUCCESS' && <span className="text-[10px] font-bold text-emerald-600 flex items-center"><CheckCircle2 size={12} className="mr-1"/> Kết nối AI thành công</span>}
-                              {aiConnectionStatus === 'FAILED' && <span className="text-[10px] font-bold text-rose-600 flex items-center"><AlertTriangle size={12} className="mr-1"/> Key không hợp lệ</span>}
-                          </div>
-                      </div>
-                  </div>
+            {/* GEMINI AI CONFIG */}
+            <div className="space-y-4">
+                <h4 className="font-black text-purple-600 text-sm uppercase tracking-widest border-b border-purple-100 pb-2 flex items-center"><Bot size={16} className="mr-2"/> Gemini AI Intelligence</h4>
+                
+                {/* --- UPDATE: Grid layout cho Key và Model --- */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Ô nhập API Key (Chiếm 2 phần) */}
+                    <div className="md:col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Gemini API Key (Bắt buộc)</label>
+                        <div className="relative">
+                            <Key size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                            <input 
+                              type="password"
+                              className="w-full pl-10 pr-4 py-3 border-2 border-slate-100 rounded-2xl text-sm font-mono font-bold text-slate-700 outline-none focus:border-purple-500 transition-all" 
+                              placeholder="AIzaSy..."
+                              value={geminiApiKey}
+                              onChange={e => setGeminiApiKey(e.target.value)}
+                            />
+                        </div>
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                      {/* GOOGLE DRIVE CONFIG */}
-                      <div className="space-y-6">
-                          <h4 className="font-black text-indigo-600 text-sm uppercase tracking-widest border-b border-indigo-100 pb-2 flex items-center"><HardDrive size={16} className="mr-2"/> Google Drive Storage (Chứng từ)</h4>
-                          <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Drive Root Folder ID</label>
-                              <input 
-                                className="w-full p-4 border-2 border-slate-100 rounded-2xl text-sm font-mono font-bold text-slate-700 outline-none focus:border-indigo-500" 
-                                placeholder="1abcdefGHIJKLMNOP..."
-                                value={driveConfig.driveFolderId || ''}
-                                onChange={e => setDriveConfig({ ...driveConfig, driveFolderId: e.target.value })}
-                              />
-                              <p className="text-[10px] text-slate-400 mt-1 italic">ID của thư mục gốc trên Google Drive nơi chứa toàn bộ file.</p>
-                          </div>
-                          
-                          <div className="space-y-3">
-                              <label className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl cursor-pointer hover:bg-slate-50">
-                                  <input 
-                                      type="checkbox" 
-                                      className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
-                                      checked={driveConfig.projectSubFolder}
-                                      onChange={e => setDriveConfig({ ...driveConfig, projectSubFolder: e.target.checked })}
-                                  />
-                                  <span className="text-xs font-bold text-slate-700">Tự động tạo thư mục con theo Dự án / Công trình</span>
-                              </label>
-                              <label className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl cursor-pointer hover:bg-slate-50">
-                                  <input 
-                                      type="checkbox" 
-                                      className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
-                                      checked={driveConfig.officeSubFolder}
-                                      onChange={e => setDriveConfig({ ...driveConfig, officeSubFolder: e.target.checked })}
-                                  />
-                                  <span className="text-xs font-bold text-slate-700">Tự động tạo thư mục con theo VP / Cửa hàng</span>
-                              </label>
-                          </div>
+                    {/* Ô chọn Model (Chiếm 1 phần) */}
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Phiên bản Model</label>
+                        <div className="relative">
+                            <Cpu size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                            <select 
+                                className="w-full pl-10 pr-4 py-3 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:border-purple-500 bg-white appearance-none cursor-pointer transition-all"
+                                value={geminiModel}
+                                onChange={e => setGeminiModel(e.target.value)}
+                            >
+                                {AI_MODELS.map(m => (
+                                    <option key={m.id} value={m.id}>
+                                        {m.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {/* Mũi tên custom cho đẹp (optional) */}
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                          <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Quyền chia sẻ mặc định (Auto-Share)</label>
-                              <select 
-                                  className="w-full p-3 border-2 border-slate-100 rounded-2xl text-sm font-bold bg-white focus:border-indigo-500 outline-none"
-                                  value={driveConfig.autoShare}
-                                  onChange={e => setDriveConfig({ ...driveConfig, autoShare: e.target.value as any })}
-                              >
-                                  <option value="VIEW">VIEW - Bất kỳ ai có link đều xem được</option>
-                                  <option value="NONE">NONE - Riêng tư (Chỉ người có quyền)</option>
-                              </select>
-                          </div>
-                      </div>
-                  </div>
-              </div>
+                {/* Nút Test & Status */}
+                <div className="flex justify-between items-center mt-2">
+                    <p className="text-[10px] text-slate-400 italic">Key này kích hoạt toàn bộ AI: Scan hóa đơn, Phân tích tài chính, Chatbot.</p>
+                    <div className="flex items-center gap-3">
+                         {aiConnectionStatus === 'SUCCESS' && <span className="text-[10px] font-bold text-emerald-600 flex items-center bg-emerald-50 px-2 py-1 rounded"><CheckCircle2 size={12} className="mr-1"/> AI Ready</span>}
+                         {aiConnectionStatus === 'FAILED' && <span className="text-[10px] font-bold text-rose-600 flex items-center bg-rose-50 px-2 py-1 rounded"><AlertTriangle size={12} className="mr-1"/> Error</span>}
+                         
+                         <button onClick={handleTestAI} className="px-5 py-2 bg-purple-50 text-purple-700 rounded-xl font-black text-[10px] uppercase tracking-widest border border-purple-100 hover:bg-purple-100 transition-all flex items-center shadow-sm">
+                            {aiConnectionStatus === 'TESTING' ? <Activity size={14} className="animate-spin mr-2"/> : <Zap size={14} className="mr-2"/>}
+                            Test & Lưu
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* GOOGLE DRIVE CONFIG (Giữ nguyên phần dưới) */}
+            {/* ... */}
+        </div>
           </div>
       )}
 

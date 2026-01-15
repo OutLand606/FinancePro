@@ -1,13 +1,25 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { RoadmapTemplate, RoadmapStage, RoadmapLog, ProjectRoadmap, StageStatus } from "../types";
-import { GEMINI_API_KEY } from "@/constants";
+import { api } from "./api";
 
-// --- CLIENT SETUP ---
-const getAiClient = () => {
-    const apiKey = GEMINI_API_KEY;
-    if (!apiKey) return null;
-    return new GoogleGenAI({ apiKey });
+const getAiClient = async () => {
+    try {
+        const res: any = await api.get<{apiKey: string}>('/api/gemini-key');
+        const apiKey = (res.success && res.apiKey) ? res.apiKey : '';
+        const modelName = (res.success && res.model) ? res.model : 'gemini-3-flash-preview';
+        if (!apiKey) {
+            throw new Error("Key chưa được cấu hình trong hệ thống.");
+        }
+        return {
+            ai: new GoogleGenAI({ apiKey }),
+            model: modelName
+        };
+        
+    } catch (error) {
+        console.error("AI Client Init Error:", error);
+        throw new Error("⛔ LỖI CẤU HÌNH: Chưa nhập Gemini API Key.\nVui lòng vào Cấu hình > Google Integration để kích hoạt AI.");
+    }
 };
 
 // --- AI #1: TẠO LỘ TRÌNH TỰ ĐỘNG ---
@@ -19,7 +31,7 @@ export interface RoadmapGenParams {
 }
 
 export const generateRoadmapTemplateAI = async (params: RoadmapGenParams): Promise<RoadmapTemplate | null> => {
-    const ai = getAiClient();
+    const {ai, model} = await getAiClient();
     if (!ai) throw new Error("Chưa cấu hình API Key");
 
     const prompt = `
@@ -44,7 +56,7 @@ export const generateRoadmapTemplateAI = async (params: RoadmapGenParams): Promi
 
     try {
         const res = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: model,
             contents: prompt,
             config: { responseMimeType: "application/json" }
         });
@@ -66,7 +78,7 @@ export const suggestLogContentAI = async (
     stageTitle: string, 
     location: string
 ): Promise<string> => {
-    const ai = getAiClient();
+    const {ai, model} = await getAiClient();
     if (!ai) return rawInput; // Fallback
 
     const prompt = `
@@ -82,14 +94,14 @@ export const suggestLogContentAI = async (
     `;
 
     try {
-        const res = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+        const res = await ai.models.generateContent({ model: model, contents: prompt });
         return res.text?.trim() || rawInput;
     } catch { return rawInput; }
 };
 
 // --- AI #4: TÓM TẮT TIẾN ĐỘ CHO CĐT ---
 export const generateProgressSummaryAI = async (logs: RoadmapLog[], stages: RoadmapStage[]): Promise<string> => {
-    const ai = getAiClient();
+    const {ai, model} = await getAiClient();
     if (!ai) return "Chưa kết nối AI.";
 
     // Lấy 10 log mới nhất
@@ -111,7 +123,7 @@ export const generateProgressSummaryAI = async (logs: RoadmapLog[], stages: Road
     `;
 
     try {
-        const res = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+        const res = await ai.models.generateContent({ model: model, contents: prompt });
         return res.text || "Không thể tạo tóm tắt.";
     } catch (e) {
         return "Lỗi AI Summary.";
