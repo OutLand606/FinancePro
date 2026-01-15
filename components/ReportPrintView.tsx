@@ -22,6 +22,7 @@ const ReportPrintView: React.FC<ReportPrintViewProps> = ({ project, roadmap, cur
 
     // Use current URL for QR Code (Assuming user accesses report via a shareable link ideally, but here just page URL)
     const reportUrl = window.location.href;
+    console.log('reportUrlreportUrl',reportUrl)
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(reportUrl)}`;
 
     return (
@@ -47,12 +48,12 @@ const ReportPrintView: React.FC<ReportPrintViewProps> = ({ project, roadmap, cur
             <style>{`
                 /* GLOBAL PAGE RESET */
                 body {
-                    background-color: #525659; /* Standard PDF viewer gray */
+                    background-color: #525659;
                     margin: 0;
                     padding: 0;
                 }
 
-                /* A4 PAPER STYLES (SCREEN & PRINT) */
+                /* A4 PAPER STYLES (SCREEN) */
                 .print-page {
                     width: 210mm;
                     min-height: 297mm;
@@ -65,36 +66,40 @@ const ReportPrintView: React.FC<ReportPrintViewProps> = ({ project, roadmap, cur
                     line-height: 1.5;
                     color: #000;
                     position: relative;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
                 }
 
-                /* HIDE EVERYTHING ELSE */
+                /* --- PRINT STYLES (QUAN TRỌNG) --- */
                 @media print {
-                    body {
-                        background: white;
-                        display: block;
+                    body * {
                         visibility: hidden;
                     }
-                    /* Hide parent containers */
-                    #root > *:not(.print-container-wrapper), .no-print, .sticky {
+                    .print-page, .print-page * {
+                        visibility: visible;
+                    }
+
+                    .print-page {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        margin: 0;
+                        padding: 20mm; 
+                        background: white;
+                        box-shadow: none; 
+                    }
+
+                    .no-print, .sticky {
                         display: none !important;
                     }
-                    
-                    /* Show only the print page */
-                    .print-page {
-                        visibility: visible;
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: auto;
-                        margin: 0;
-                        padding: 10mm 15mm; 
-                        box-shadow: none;
-                    }
-                    
+
                     @page { 
                         size: A4; 
-                        margin: 0; 
+                        margin: 0;
+                    }
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
                 }
 
@@ -114,9 +119,9 @@ const ReportPrintView: React.FC<ReportPrintViewProps> = ({ project, roadmap, cur
                 /* TABLE STYLES */
                 table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                 th, td { border: 1px solid #000; padding: 5px; text-align: left; vertical-align: top; }
-                th { font-weight: bold; background-color: #f0f0f0 !important; text-align: center; -webkit-print-color-adjust: exact; }
+                th { font-weight: bold; background-color: #f0f0f0 !important; text-align: center; }
                 
-                /* IMAGE GRID - IMPROVED */
+                /* IMAGE GRID */
                 .photo-grid {
                     display: grid;
                     grid-template-columns: repeat(3, 1fr);
