@@ -876,9 +876,9 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden p-8 flex flex-col">
+      <div className="flex-1 overflow-hidden p-4 flex flex-col">
         {/* GLOBAL TIME FILTER CONTROL */}
-        <div className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm w-fit mb-6 animate-in slide-in-from-top-2">
+        <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm w-fit animate-in slide-in-from-top-2">
           <div className="flex bg-slate-100 p-1 rounded-xl">
             <button
               onClick={() => setTimeViewMode("MONTH")}
