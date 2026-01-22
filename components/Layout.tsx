@@ -3,7 +3,7 @@ import { Menu, X, LogOut, ChevronDown } from "lucide-react";
 import { isModuleEnabled } from "../services/systemConfigService";
 import { hasPermission } from "../services/authService";
 import { UserContext } from "../types";
-import { APP_MODULES } from "../services/moduleRegistry";
+import { APP_MODULES } from "./moduleRegistry";
 
 interface LayoutProps {
   children: React.ReactNode;

@@ -5,24 +5,25 @@ import {
   LayoutDashboard, Wallet, FolderKanban, PieChart, Users, 
   FileCheck, ShoppingBag, Settings as SettingsIcon, Bot,
   Clock, CreditCard, UserCircle, Briefcase, User, Contact,
-  Target, Building2
+  Target, Building2, Scale
 } from 'lucide-react';
 
-import Dashboard from '../components/Dashboard.tsx';
-import ProjectManager from '../components/ProjectManager.tsx';
-import TransactionList from '../components/TransactionList.tsx';
-import ContractManager from '../components/ContractManager.tsx';
-import SupplierPriceManager from '../components/SupplierPriceManager.tsx';
-import TaxKpiDashboard from '../components/TaxKpiDashboard.tsx';
-import PayrollManager from '../components/PayrollManager.tsx';
-import Settings from '../components/Settings.tsx';
-import EmployeeManager from '../components/EmployeeManager.tsx';
-import TimesheetManager from '../components/TimesheetManager.tsx';
-import MyPayslips from '../components/MyPayslips.tsx';
-import CustomerManager from '../components/CustomerManager.tsx';
-import KPIManager from '../components/KPIManager.tsx';
-import OfficeManager from '../components/OfficeManager.tsx';
-import AIAnalyst from '../components/AIAnalyst.tsx';
+import Dashboard from './Dashboard.tsx';
+import ProjectManager from './ProjectManager.tsx';
+import TransactionList from './TransactionList.tsx';
+import ContractManager from './ContractManager.tsx';
+import SupplierPriceManager from './SupplierPriceManager.tsx';
+import TaxKpiDashboard from './TaxKpiDashboard.tsx';
+import PayrollManager from './PayrollManager.tsx';
+import Settings from './Settings.tsx';
+import EmployeeManager from './EmployeeManager.tsx';
+import TimesheetManager from './TimesheetManager.tsx';
+import MyPayslips from './MyPayslips.tsx';
+import CustomerManager from './CustomerManager.tsx';
+import KPIManager from './KPIManager.tsx';
+import OfficeManager from './OfficeManager.tsx';
+import AIAnalyst from './AIAnalyst.tsx';
+import InvoiceBalanceManager from './InvoiceBalanceManager.tsx';
 
 export const APP_MODULES: AppModuleDefinition[] = [
     {
@@ -47,6 +48,22 @@ export const APP_MODULES: AppModuleDefinition[] = [
         icon: Wallet,
         permission: 'TRANS_CREATE',
         component: (props: GlobalDataProps) => <TransactionList {...props} />
+    },
+    {
+        key: 'invoice-balance',
+        label: 'Hóa đơn & Cân đối',
+        enabled: true,
+        icon: Scale,
+        permission: 'TRANS_VIEW_ALL',
+        component: (props: GlobalDataProps) => <InvoiceBalanceManager 
+            transactions={props.transactions} 
+            projects={props.projects} 
+            partners={props.partners} 
+            contracts={props.contracts}
+            onAddTransaction={props.onAddTransaction}
+            onAddPartner={props.onAddPartner}
+            accounts={props.accounts}
+        />
     },
     {
         key: 'contracts',

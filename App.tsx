@@ -16,7 +16,7 @@ import { checkSession } from './services/authService.ts';
 import { getEmployeeById } from './services/employeeService.ts';
 import { runMigrations } from './services/migrationService.ts';
 import { Loader2 } from 'lucide-react';
-import { getFlattenedModules } from './services/moduleRegistry.tsx';
+import { getFlattenedModules } from './components/moduleRegistry.tsx';
 import { api } from './services/api.ts';
 import WorkerView from './components/WorkerView.tsx';
 

@@ -849,3 +849,49 @@ export interface ProjectContact {
     phone: string; // VD: "0912345678"
     isWorkerLogin: boolean; // Cho phép số này đăng nhập giao diện Thợ
 }
+
+export interface CostTarget {
+    id: string;
+    label: string;
+    percent: number; // % trên Doanh thu
+    mappingKey: 'MATERIAL' | 'LABOR' | 'MARKETING' | 'OFFICE' | 'OTHER'; // Logic map
+    description?: string;
+}
+
+export interface CostPlan {
+    id: string;
+    year: number;
+    name: string;
+    targetMaterial: number; // Deprecated but kept for backward compact
+    targetLabor: number; // Deprecated
+    targetOverhead: number; // Deprecated
+    targetProfit: number; // Deprecated
+    targets?: CostTarget[]; // NEW DYNAMIC TARGETS
+}
+
+export interface InvoiceObligation {
+    id: string;
+    sourceType: 'CONTRACT' | 'ORPHAN_EXPENSE';
+    sourceId: string;
+    sourceName: string;
+    partnerId: string;
+    partnerName: string;
+    totalObligationAmount: number;
+    collectedAmount: number;
+    missingAmount: number;
+    status: 'FULFILLED' | 'PARTIAL' | 'MISSING';
+    linkedTransactionIds: string[];
+}
+
+export interface CostSnapshot {
+    period: string;
+    actualRevenue: number;
+    actualMaterial: number;
+    actualLabor: number;
+    actualOverhead: number;
+    ratioMaterial: number;
+    ratioLabor: number;
+    ratioOverhead: number;
+    plan: CostPlan;
+    warnings: string[];
+}
