@@ -59,6 +59,7 @@ interface InvoiceBalanceManagerProps {
   contracts: Contract[];
   onAddTransaction: (t: Transaction) => void;
   onAddPartner: (p: Partner) => void;
+  accounts: any;
 }
 
 // Helper to get quarter
@@ -203,49 +204,6 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
     loadOutputPlan();
   }, [currentYear, currentQuarter, currentMonth, timeViewMode]);
 
-  useEffect(() => {
-    if (isPlanLoading || !outputPlan) return;
-
-    const currentKey = getPlanKey();
-
-    const timer = setTimeout(async () => {
-      try {
-        const payload = {
-          id: currentKey,
-          ...outputPlan,
-
-          year: currentYear,
-          viewMode: timeViewMode,
-          month: timeViewMode === "MONTH" ? currentMonth : null,
-          quarter: timeViewMode === "QUARTER" ? currentQuarter : null,
-        };
-
-        if (isPlanExistingRef.current) {
-          console.log("Auto-saving (UPDATE)...", currentKey);
-          await api.put(`/finance-output-plan/${currentKey}`, payload);
-        } else {
-          console.log("Auto-saving (CREATE)...", currentKey);
-          const res: any = await api.post("/finance-output-plan", payload);
-
-          if (res.success) {
-            isPlanExistingRef.current = true;
-          }
-        }
-      } catch (error) {
-        console.error("Auto-save failed:", error);
-      }
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [
-    outputPlan,
-    currentYear,
-    currentQuarter,
-    currentMonth,
-    timeViewMode,
-    isPlanLoading,
-  ]);
-
   // --- STATE: UI & BULK ACTIONS ---
   const [sourceTab, setSourceTab] = useState<"REVENUE" | "EXPENSE">("REVENUE");
   const [filterStatus, setFilterStatus] = useState<
@@ -274,7 +232,7 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
   // --- STATE: CONFIG ---
   const [showConfigModal, setShowConfigModal] = useState(false);
 
-  const [localCostPlan, setLocalCostPlan] = useState<CostPlan>(async () => {
+  const [localCostPlan, setLocalCostPlan] = useState<any>(async () => {
     const plan = await getCostPlan();
     if (!plan.targets || plan.targets.length === 0) {
       return { ...plan, targets: DEFAULT_COST_TARGETS };
@@ -339,8 +297,11 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
     );
 
     const mappedList = list.map((t) => {
-      const hasFile = t.attachments && t.attachments.length > 0;
-      const status = hasFile && t.hasVATInvoice ? "COMPLETED" : "MISSING";
+      const hasRedInvoiceFile =
+        t.attachments &&
+        t.attachments.some((att) => att.id && att.id.includes("HOADON"));
+      const status =
+        hasRedInvoiceFile && t.hasVATInvoice ? "COMPLETED" : "MISSING";
       const vatVal =
         t.vatAmount ||
         (t.hasVATInvoice ? Math.round(t.amount - t.amount / 1.1) : 0);
@@ -573,7 +534,7 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
     if (invoiceStats.missingCount > 0) {
       tasks.push({
         id: "t_inv",
-        text: `Bạn còn ${invoiceStats.missingCount} chứng từ cần tải hóa đơn gốc (XML/PDF) lên để tránh bị nhắc nhở.`,
+        text: `Bạn còn ${invoiceStats.missingCount} chứng từ cần tải hóa đơn gốc (PDF) lên để tránh bị nhắc nhở.`,
         type: "URGENT",
         done: false,
       });
@@ -666,12 +627,16 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
 
     setIsUploading(uploadTargetId);
     try {
-      const attachment = await uploadFileToDrive(file);
-      let aiWarning = null;
+      const originalAttachment = await uploadFileToDrive(file);
+      const redInvoiceAttachment = {
+        ...originalAttachment,
+        id: `att_HOADON_${Date.now()}`, // Đánh dấu file này là Hóa Đơn
+      };
       const targetTrans = transactions.find((t) => t.id === uploadTargetId);
       if (!targetTrans) throw new Error("Giao dịch không tồn tại");
 
-      if (file.type.includes("image")) {
+      let aiWarning = null;
+      if (file.type.includes("pdf")) {
         try {
           const aiResult = await extractTransactionFromImage(file);
           if (aiResult && aiResult.amount > 0) {
@@ -699,16 +664,15 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
       const currentVat =
         targetTrans.vatAmount ||
         Math.round(targetTrans.amount - targetTrans.amount / 1.1);
-
       await updateTransaction({
         ...targetTrans,
-        attachments: [...(targetTrans.attachments || []), attachment],
+        attachments: [...(targetTrans.attachments || []), redInvoiceAttachment],
         hasVATInvoice: true,
         vatAmount: currentVat,
       });
 
       alert(`Đã cập nhật hóa đơn thành công!`);
-      window.location.reload();
+      // window.location.reload();
     } catch (err: any) {
       alert("Lỗi: " + err.message);
     } finally {
@@ -807,7 +771,7 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
     const updated = { ...project, contractTotalValue: editProjectValue };
     await updateProject(updated);
     setEditingProjectId(null);
-    window.location.reload();
+    // window.location.reload();
   };
   const handleSavePlan = () => {
     saveCostPlan(localCostPlan);
@@ -1187,17 +1151,21 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
                             </button>
                           ) : (
                             <div className="flex gap-1 justify-end">
-                              {t.attachments?.map((att, i) => (
-                                <a
-                                  key={i}
-                                  href={att.url}
-                                  target="_blank"
-                                  className="p-1.5 bg-slate-100 text-slate-500 rounded hover:bg-white hover:text-indigo-600 hover:shadow-sm border border-transparent hover:border-slate-200"
-                                  title={att.name}
-                                >
-                                  <FileText size={14} />
-                                </a>
-                              ))}
+                              {t.attachments
+                                ?.filter(
+                                  (att) => att.id && att.id.includes("HOADON"),
+                                )
+                                .map((att, i) => (
+                                  <a
+                                    key={i}
+                                    href={att.url}
+                                    target="_blank"
+                                    className="p-1.5 bg-slate-100 text-slate-500 rounded hover:bg-white hover:text-indigo-600 hover:shadow-sm border border-transparent hover:border-slate-200"
+                                    title={att.name}
+                                  >
+                                    <FileText size={14} />
+                                  </a>
+                                ))}
                             </div>
                           )}
                         </td>
@@ -1838,7 +1806,7 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
         type="file"
         ref={fileInputRef}
         className="hidden"
-        accept="image/*,.pdf,.xml"
+        accept=".pdf"
         onChange={handleQuickUpload}
       />
 
@@ -1990,12 +1958,12 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
                   <>
                     <Upload size={32} className="mx-auto text-slate-300 mb-2" />
                     <p className="text-sm font-bold text-slate-600">
-                      Chọn file ảnh/PDF hóa đơn
+                      Chọn PDF hóa đơn
                     </p>
                     <input
                       type="file"
                       className="absolute inset-0 opacity-0 cursor-pointer"
-                      accept="image/*,.pdf"
+                      accept=".pdf"
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
@@ -2081,27 +2049,44 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
                   <button
                     onClick={() => {
                       if (!scannedTransaction.amount) return;
+                      const processedAttachments =
+                        scannedTransaction.attachments?.map((att, index) => ({
+                          ...att,
+                          id: `att_HOADON_${Date.now()}_${index}`,
+                        })) || [];
+
+                      const isInput = viewInvoiceType === "INPUT";
+                      const determinedType = isInput
+                        ? TransactionType.EXPENSE
+                        : TransactionType.INCOME;
+                      const determinedCategory = isInput
+                        ? "Chi phí HĐ"
+                        : "Doanh thu HĐ";
+
                       onAddTransaction({
-                        id: `t_scan_${Date.now()}`,
+                        id: `t_scan_HOADON_${Date.now()}`,
                         code: `INV-${Date.now().toString().slice(-6)}`,
                         date: scannedTransaction.date!,
                         amount: scannedTransaction.amount!,
                         description: scannedTransaction.description!,
-                        type: TransactionType.EXPENSE,
+                        type: determinedType,
                         scope: TransactionScope.PROJECT,
-                        category: "Chi phí HĐ",
+                        category: determinedCategory,
                         projectId: "",
                         partnerId: "",
                         status: TransactionStatus.PAID,
                         targetAccountId: "acc_default",
-                        attachments: scannedTransaction.attachments,
+
+                        attachments: processedAttachments,
                         hasVATInvoice: true,
                         createdAt: new Date().toISOString(),
                       } as Transaction);
+
                       setShowStandaloneModal(false);
                       setScannedTransaction({});
-                      //   window.location.reload();
+
                       alert("Đã lưu hóa đơn!");
+                      // window.location.reload();
                     }}
                     className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold uppercase text-xs hover:bg-indigo-700 shadow-lg"
                   >
