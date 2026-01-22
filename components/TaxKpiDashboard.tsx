@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Transaction, Project, Partner, CashAccount, TransactionStatus, Contract } from '../types';
 import { calculateTaxKpi } from '../services/taxKpiService';
 import { DEFAULT_KPI_TARGETS } from '../constants';
-import { AlertTriangle, TrendingUp, TrendingDown, FileWarning, DollarSign, Filter, Receipt, FileText, Calendar, Search, ArrowRight, Briefcase } from 'lucide-react';
+import { AlertTriangle, TrendingUp, TrendingDown, FileWarning, DollarSign, Filter, Receipt, FileText, Calendar, Search, ArrowRight, Briefcase, X } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 
 interface TaxKpiDashboardProps {
@@ -18,7 +18,7 @@ const TaxKpiDashboard: React.FC<TaxKpiDashboardProps> = ({ transactions, project
   // Filters
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
-  
+  const [detailTransaction, setDetailTransaction] = useState<any>(null);
   const [projectId, setProjectId] = useState('');
   const [partnerId, setPartnerId] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -58,7 +58,7 @@ const TaxKpiDashboard: React.FC<TaxKpiDashboardProps> = ({ transactions, project
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto custom-scrollbar space-y-6 pr-2">
       {/* Header & Filters */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -229,7 +229,9 @@ const TaxKpiDashboard: React.FC<TaxKpiDashboardProps> = ({ transactions, project
                               </span>
                            </td>
                            <td className="px-6 py-3 text-right">
-                               <button className="text-xs font-bold text-indigo-600 hover:underline flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                               <button 
+                               onClick={() => setDetailTransaction(t)}
+                               className="text-xs font-bold text-indigo-600 hover:underline flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                    Chi tiết <ArrowRight size={12} className="ml-1"/>
                                </button>
                            </td>
@@ -243,6 +245,75 @@ const TaxKpiDashboard: React.FC<TaxKpiDashboardProps> = ({ transactions, project
             </div>
          </div>
       </div>
+
+      {/* MODAL CHI TIẾT GIAO DỊCH */}
+      {detailTransaction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-slate-800 text-lg">Chi tiết cảnh báo</h3>
+              <button 
+                onClick={() => setDetailTransaction(null)} 
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={20}/>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
+                 <div className="p-2 bg-white rounded-lg text-red-500 shadow-sm"><AlertTriangle size={20}/></div>
+                 <div>
+                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Vấn đề phát hiện</p>
+                    <p className="font-bold text-red-700">{detailTransaction.issue}</p>
+                 </div>
+              </div>
+
+              <div className="space-y-3">
+                 <div className="flex justify-between border-b border-slate-50 pb-2">
+                    <span className="text-sm text-slate-500">Ngày giao dịch</span>
+                    <span className="text-sm font-bold text-slate-700">{new Date(detailTransaction.date).toLocaleDateString('vi-VN')}</span>
+                 </div>
+                 <div className="flex justify-between border-b border-slate-50 pb-2">
+                    <span className="text-sm text-slate-500">Số tiền</span>
+                    <span className="text-sm font-bold text-slate-700">{detailTransaction.amount.toLocaleString()} ₫</span>
+                 </div>
+                 <div>
+                    <span className="text-sm text-slate-500 block mb-1">Nội dung</span>
+                    <p className="text-sm font-medium text-slate-800 bg-slate-50 p-2 rounded-lg">{detailTransaction.description}</p>
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">Dự án</span>
+                        <p className="text-xs font-bold text-slate-600 truncate">
+                            {projects.find(p => p.id === detailTransaction.projectId)?.name || '---'}
+                        </p>
+                    </div>
+                    <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">Đối tác</span>
+                        <p className="text-xs font-bold text-slate-600 truncate">
+                            {partners.find(p => p.id === detailTransaction.partnerId)?.name || '---'}
+                        </p>
+                    </div>
+                 </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+               <button 
+                  onClick={() => setDetailTransaction(null)}
+                  className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+               >
+                  Đóng
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

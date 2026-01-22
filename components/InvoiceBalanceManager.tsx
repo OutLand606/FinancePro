@@ -129,7 +129,7 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
   contracts,
   onAddTransaction,
   onAddPartner,
-  accounts
+  accounts,
 }) => {
   const [activeTab, setActiveTab] = useState<
     "DASHBOARD" | "INVOICE" | "TAX" | "LABOR"
@@ -876,7 +876,7 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden p-8">
+      <div className="flex-1 overflow-hidden p-8 flex flex-col">
         {/* GLOBAL TIME FILTER CONTROL */}
         <div className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm w-fit mb-6 animate-in slide-in-from-top-2">
           <div className="flex bg-slate-100 p-1 rounded-xl">
@@ -943,7 +943,7 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
 
         {/* TAB: INVOICE CONTROL */}
         {activeTab === "INVOICE" && (
-          <div className="h-full flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4">
             {/* 1. FILTERS & BULK ACTIONS */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-[24px] border border-slate-200 shadow-sm shrink-0">
               <div className="flex items-center gap-4">
@@ -1222,7 +1222,7 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
 
         {/* TAB 2: DASHBOARD (Tax Balance) */}
         {activeTab === "DASHBOARD" && (
-          <div className="h-full flex gap-6 animate-in fade-in slide-in-from-bottom-4 overflow-hidden">
+          <div className="flex-1 min-h-0 flex gap-6 animate-in fade-in slide-in-from-bottom-4 overflow-hidden">
             {/* LEFT COLUMN: SOURCE SELECTION */}
             <div className="w-[480px] bg-white rounded-[32px] border border-slate-200 shadow-sm flex flex-col overflow-hidden shrink-0">
               {/* Session Indicator */}
@@ -2100,7 +2100,7 @@ const InvoiceBalanceManager: React.FC<InvoiceBalanceManagerProps> = ({
                       } as Transaction);
                       setShowStandaloneModal(false);
                       setScannedTransaction({});
-                    //   window.location.reload();
+                      //   window.location.reload();
                       alert("Đã lưu hóa đơn!");
                     }}
                     className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold uppercase text-xs hover:bg-indigo-700 shadow-lg"
