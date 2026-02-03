@@ -5,8 +5,15 @@ import {
 } from '../types';
 import { 
     fetchTickets, createTicket, updateTicketStatus, addTicketComment, generateTicketCode, updateTicket, getTicketStats,
-    getEmployeeEvaluations, getManualReminders, saveManualReminder, toggleReminderStatus, deleteReminder, checkAndGenerateRecurringTickets, getRecurringSuggestions,
-    runTicketAutomation, checkTicketPermission, TICKET_TEMPLATES, sendTicketReminder, getElapsedTime, APPROVAL_TYPES, TASK_TYPES, AdvancedEmployeeEvaluation
+    getEmployeeEvaluations, getManualReminders, saveManualReminder, toggleReminderStatus, deleteReminder, getRecurringSuggestions,
+    runTicketAutomation, checkTicketPermission, TICKET_TEMPLATES, sendTicketReminder, getElapsedTime, APPROVAL_TYPES, TASK_TYPES, AdvancedEmployeeEvaluation,
+    initializeTicketConfigs,
+    fetchDepartments,
+    fetchTicketTypesConfig,
+    saveTicketTypeConfig,
+    saveDepartment,
+    deleteTicketTypeConfig,
+    deleteDepartment
 } from '../services/ticketService';
 import { requestNotificationPermission } from '../services/notificationService';
 import { uploadFileToDrive } from '../services/googleDriveService';
@@ -198,8 +205,8 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
     const [showCompletionModal, setShowCompletionModal] = useState(false);
     
     // Config State
-    const [departments, setDepartments] = useState(DEFAULT_DEPARTMENTS);
-    const [ticketTypes, setTicketTypes] = useState(DEFAULT_TICKET_TYPES);
+    const [departments, setDepartments] = useState([]);
+    const [ticketTypes, setTicketTypes] = useState([]);
     
     // UI State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -218,7 +225,18 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
     
     // Form State
     const [createCategory, setCreateCategory] = useState<'APPROVAL' | 'TASK'>('APPROVAL');
-    const [formState, setFormState] = useState<Partial<Ticket>>({ priority: 'NORMAL', type: 'OTHER', assigneeIds: [], followerIds: [] });
+    // Khởi tạo state cho Form
+    const [formState, setFormState] = useState<Partial<Ticket>>({
+        title: '',
+        priority: 'NORMAL',
+        type: 'OTHER', // Hoặc giá trị mặc định tùy logic
+        departmentCode: '', // Quan trọng: Để lưu phòng ban
+        projectId: '',      // Quan trọng: Để lưu dự án
+        assigneeIds: [],    // Quan trọng: Mảng người xử lý
+        followerIds: [],
+        description: '',
+        completionCriteria: '' // Quan trọng: Tiêu chí hoàn thành
+    });
     const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
     
     // Reminder Form
@@ -246,11 +264,7 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
     useEffect(() => {
         loadData();
         loadConfig();
-        // AUTO-RUN AUTOMATION ON MOUNT
         runTicketAutomation().then(loadData);
-        checkAndGenerateRecurringTickets(currentUser).then(() => loadData()); 
-        
-        // REQUEST NOTIFICATION PERMISSION
         requestNotificationPermission();
     }, []);
 
@@ -277,31 +291,55 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
         }
     }, [createCategory, ticketTypes]);
 
-    const loadConfig = () => {
+    const loadConfig = async () => {
         try {
-            const savedTypes = localStorage.getItem('finance_workflow_types');
-            const savedDepts = localStorage.getItem('finance_workflow_depts');
-            if (savedTypes) {
-                // Ensure backward compatibility by mapping old types to new structure if needed
-                const parsed = JSON.parse(savedTypes);
-                // Simple check if migration needed (if category missing)
-                const migrated = parsed.map((t: any) => {
-                    if (!t.category) {
-                        return { ...t, category: APPROVAL_TYPES.includes(t.code) ? 'APPROVAL' : 'TASK' };
-                    }
-                    return t;
-                });
-                setTicketTypes(migrated);
-            }
-            if (savedDepts) setDepartments(JSON.parse(savedDepts));
-        } catch(e) { console.error(e); }
+            // 1. Chạy khởi tạo (nếu lần đầu chưa có dữ liệu backend)
+            await initializeTicketConfigs(); 
+
+            // 2. Lấy dữ liệu mới nhất từ Backend
+            const [depts, types] = await Promise.all([
+                fetchDepartments(),
+                fetchTicketTypesConfig()
+            ]);
+            
+            setDepartments(depts);
+            setTicketTypes(types);
+        } catch(e) { console.error("Config Load Error", e); }
     };
 
-    const saveConfig = () => {
-        localStorage.setItem('finance_workflow_types', JSON.stringify(ticketTypes));
-        localStorage.setItem('finance_workflow_depts', JSON.stringify(departments));
-        setShowConfig(false);
-        alert("Đã lưu cấu hình thành công!");
+    // Thay thế hàm saveConfig cũ bằng hàm này:
+    const saveConfig = async () => {
+        try {
+            // Hiển thị loading nhẹ hoặc disable nút nếu cần
+            setIsLoading(true); 
+
+            // 1. Tạo danh sách các Promise để lưu Ticket Types
+            const typePromises = ticketTypes.map((t: any) => 
+                saveTicketTypeConfig({
+                    ...t,
+                    // Đảm bảo có ID. Nếu chưa có (dữ liệu cũ), tạo ID theo quy tắc
+                    id: t.id || `type_${t.code}` 
+                })
+            );
+
+            // 2. Tạo danh sách các Promise để lưu Departments
+            const deptPromises = departments.map((d: any) => 
+                saveDepartment({
+                    ...d,
+                    id: d.id || `dept_${d.code}`
+                })
+            );
+
+            // 3. Thực thi tất cả cùng lúc (tối ưu tốc độ)
+            await Promise.all([...typePromises, ...deptPromises]);
+
+            setShowConfig(false);
+            alert("Đã đồng bộ cấu hình lên Server thành công!");
+        } catch (error) {
+            console.error("Lỗi lưu cấu hình:", error);
+            alert("Có lỗi xảy ra khi lưu cấu hình.");
+        } 
+        finally { setIsLoading(false); }
     };
 
     const loadData = async () => {
@@ -314,7 +352,7 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
         setEmployees(empData);
         
         // Load extras
-        setReminders(getManualReminders());
+        setReminders(await getManualReminders());
         
         setIsLoading(false);
     };
@@ -490,70 +528,109 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
     }, [tickets, searchTerm, filterStatus, filterPriority, filterTimeMode, filterDate, filterCategory, filterPerson]);
 
     // --- HANDLER: ADD NEW TICKET TYPE DYNAMICALLY ---
-    const handleAddTicketType = () => {
+    const handleAddTicketType = async () => {
         const name = prompt("Nhập tên Loại yêu cầu mới:");
         if (!name) return;
         
-        // Auto-generate code
         const code = `CUSTOM_${Date.now()}`;
         const newType = { 
             code, 
             label: name, 
-            category: createCategory, // Inherit current tab context
-            sla: 24 // Default SLA
+            category: createCategory, 
+            sla: 24 
         };
 
-        const updatedTypes = [...ticketTypes, newType];
-        setTicketTypes(updatedTypes);
-        localStorage.setItem('finance_workflow_types', JSON.stringify(updatedTypes));
+        // GỌI API LƯU
+        await saveTicketTypeConfig(newType);
         
-        // Auto-select the newly created type
+        // Cập nhật State
+        const updatedTypes = await fetchTicketTypesConfig();
+        setTicketTypes(updatedTypes);
+        
+        // Auto select
         setFormState(prev => ({...prev, type: code as any}));
     };
 
-    // ... (Keep handleCreateTicket, handleQuickAction, etc. logic same as previous) ...
-    // Re-implementing simplified versions for brevity in XML, ensure logic from previous turns is preserved.
-    
     const handleCreateTicket = async () => {
-        if (!formState.title || !formState.assigneeIds?.length) return alert("Vui lòng nhập tiêu đề và chọn người xử lý.");
-        
-        // Find default approver from config
+        // 1. Validate dữ liệu đầu vào
+        if (!formState.title || !formState.assigneeIds?.length) {
+            alert("Vui lòng nhập tiêu đề và chọn ít nhất một người xử lý.");
+            return;
+        }
+
+        // 2. Logic tìm người duyệt mặc định (nếu có cấu hình trong ticketTypes)
+        // Ví dụ: Loại phiếu Mua sắm (REQUEST_PURCHASE) có thể cấu hình sếp mặc định duyệt
         const typeConfig: any = ticketTypes.find(t => t.code === formState.type);
         const defaultApproverId = typeConfig?.defaultApproverId;
         const defaultApproverName = employees.find(e => e.id === defaultApproverId)?.fullName;
 
-        const ticket: Ticket = {
-            id: '', 
-            code: generateTicketCode(),
+        // 3. Chuẩn bị Object Ticket để gửi xuống Backend
+        const ticketPayload: Ticket = {
+            id: '', // createTicket trong service sẽ tự sinh ID hoặc Backend sinh ID
+            code: '', // createTicket trong service sẽ tự sinh Code
+            
+            // --- CÁC TRƯỜNG TỪ FORM (Đồng bộ với UI bạn cung cấp) ---
             title: formState.title,
             type: formState.type || 'OTHER',
             priority: formState.priority || 'NORMAL',
+            departmentCode: formState.departmentCode || 'OTHER', // Lưu phòng ban
+            projectId: formState.projectId || undefined,         // Lưu ID dự án
+            projectName: projects.find(p => p.id === formState.projectId)?.name, // Lưu tên dự án (để hiển thị nhanh)
+            completionCriteria: formState.completionCriteria || '', // Lưu tiêu chí hoàn thành
             description: formState.description || '',
-            completionCriteria: formState.completionCriteria || '',
+            assigneeIds: formState.assigneeIds, // Mảng ID người xử lý
+            // --------------------------------------------------------
+
+            // --- CÁC TRƯỜNG HỆ THỐNG / CONTEXT ---
             creatorId: currentUser.id,
             creatorName: currentUser.name,
             creatorAvatar: currentUser.avatarUrl,
-            assigneeIds: formState.assigneeIds,
             followerIds: formState.followerIds || [],
-            departmentCode: formState.departmentCode || 'OTHER',
-            projectId: formState.projectId,
-            projectName: projects.find(p => p.id === formState.projectId)?.name,
-            status: 'NEW',
+            
+            status: 'NEW', // Trạng thái mặc định
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
+            
+            // --- LOGIC PHÊ DUYỆT ---
+            approverId: defaultApproverId, // Lưu người duyệt nếu có
+            approverName: defaultApproverName,
+            
             comments: [],
             attachments: [],
             rating: 0,
             history: [],
-            reminderHistory: [],
-            approverId: defaultApproverId,
-            approverName: defaultApproverName
+            reminderHistory: []
         };
 
-        await createTicket(ticket);
-        await loadData();
-        setIsCreateModalOpen(false);
-        setFormState({ priority: 'NORMAL', type: 'OTHER', assigneeIds: [], followerIds: [] });
+        setIsLoading(true); // Hiển thị loading nếu cần
+        try {
+            // Gọi Service (đã viết lại gọi API backend)
+            await createTicket(ticketPayload);
+            
+            // Reload lại danh sách sau khi tạo xong
+            await loadData();
+            
+            // Đóng modal và Reset form
+            setIsCreateModalOpen(false);
+            setFormState({ 
+                title: '',
+                priority: 'NORMAL', 
+                type: 'OTHER', 
+                assigneeIds: [], 
+                followerIds: [],
+                departmentCode: '',
+                projectId: '',
+                description: '',
+                completionCriteria: ''
+            });
+            
+            alert("Tạo yêu cầu thành công!");
+        } catch (error: any) {
+            console.error("Lỗi tạo ticket:", error);
+            alert("Lỗi khi tạo yêu cầu: " + error.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleQuickAction = async (action: 'APPROVE' | 'REJECT' | 'COMPLETE_REPORT' | 'CLOSE' | 'FINALIZE') => {
@@ -722,14 +799,42 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
     const getEmpName = (id: string) => employees.find(e => e.id === id)?.fullName || id;
 
     // Config Helpers
-    const addConfigItem = () => {
+    const addConfigItem = async () => {
         if (!newConfigItem.code || !newConfigItem.label) return alert("Vui lòng nhập Mã và Tên");
-        if (configTab === 'TYPES') {
-            setTicketTypes(prev => [...prev, { code: newConfigItem.code.toUpperCase(), label: newConfigItem.label, sla: Number(newConfigItem.sla) || 0 } as any]);
-        } else {
-            setDepartments(prev => [...prev, { code: newConfigItem.code.toUpperCase(), label: newConfigItem.label }]);
+        
+        try {
+            if (configTab === 'TYPES') {
+                const newType = { 
+                    code: newConfigItem.code.toUpperCase(), 
+                    label: newConfigItem.label, 
+                    category: createCategory, // Lấy category từ tab hiện tại hoặc logic của bạn
+                    sla: Number(newConfigItem.sla) || 0,
+                    defaultApproverId: '' 
+                };
+                
+                // GỌI API LƯU
+                await saveTicketTypeConfig(newType);
+                
+                // Refresh list
+                setTicketTypes(await fetchTicketTypesConfig());
+            } else {
+                const newDept = { 
+                    code: newConfigItem.code.toUpperCase(), 
+                    label: newConfigItem.label 
+                };
+                
+                // GỌI API LƯU
+                await saveDepartment(newDept);
+                
+                // Refresh list
+                setDepartments(await fetchDepartments());
+            }
+            // Reset input
+            setNewConfigItem({ code: '', label: '', sla: 0 });
+            alert("Đã thêm thành công!");
+        } catch (e) {
+            alert("Lỗi khi lưu: " + e);
         }
-        setNewConfigItem({ code: '', label: '', sla: 0 });
     };
 
     const changeTypeApprover = (typeCode: string, approverId: string) => {
@@ -750,7 +855,7 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
     };
     
     // Reminder Handlers
-    const handleAddReminder = () => {
+    const handleAddReminder = async () => {
         if (!newReminder.targetName || !newReminder.content) return;
         const r: ManualReminder = {
             id: `rem_${Date.now()}`,
@@ -760,18 +865,18 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
             createdAt: new Date().toISOString()
         };
         saveManualReminder(r);
-        setReminders(getManualReminders());
+        setReminders(await getManualReminders());
         setNewReminder({ targetName: '', content: '' });
     };
 
-    const handleToggleReminder = (id: string) => {
+    const handleToggleReminder = async (id: string) => {
         toggleReminderStatus(id);
-        setReminders(getManualReminders());
+        setReminders(await getManualReminders());
     };
 
-    const handleDeleteReminder = (id: string) => {
+    const handleDeleteReminder = async (id: string) => {
         deleteReminder(id);
-        setReminders(getManualReminders());
+        setReminders(await getManualReminders());
     };
 
     const handlePrintTicket = () => {
@@ -1604,9 +1709,20 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
                                     className="w-full border-2 border-slate-100 rounded-xl p-3 font-bold text-slate-800 outline-none focus:border-indigo-500" 
                                     autoFocus 
                                     value={formState.title || ''} 
-                                    onChange={e => {
-                                        setFormState({...formState, title: e.target.value});
-                                        setTitleSuggestions(getRecurringSuggestions(e.target.value));
+                                    onChange={async (e) => {
+                                        // 1. Lưu giá trị mới vào biến tạm
+                                        const newVal = e.target.value;
+
+                                        // 2. Cập nhật UI ngay lập tức
+                                        setFormState({ ...formState, title: newVal });
+
+                                        // 3. Xử lý await để lấy gợi ý
+                                        try {
+                                            const suggestions = await getRecurringSuggestions(newVal);
+                                            setTitleSuggestions(suggestions);
+                                        } catch (err) {
+                                            console.error(err);
+                                        }
                                     }}
                                     placeholder={createCategory === 'APPROVAL' ? "Ví dụ: Đề xuất mua máy in mới..." : "Ví dụ: Hỗ trợ cài đặt phần mềm..."}
                                 />
@@ -1736,7 +1852,12 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
                                             </div>
                                             <div className="col-span-1 flex justify-between items-center">
                                                 <span className="text-xs font-mono text-orange-600">{type.sla}h</span>
-                                                <button onClick={() => { if(confirm('Xóa?')) { const n = [...ticketTypes]; n.splice(idx, 1); setTicketTypes(n); }}} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
+                                                <button onClick={async () => { 
+                                                    if(confirm('Xóa loại yêu cầu này?')) { 
+                                                        await deleteTicketTypeConfig(type.id || `type_${type.code}`);
+                                                        setTicketTypes(await fetchTicketTypesConfig());
+                                                    }
+                                                }} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
                                             </div>
                                         </div>
                                     ))}
@@ -1758,13 +1879,18 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
 
                             {configTab === 'DEPTS' && (
                                 <div className="space-y-4">
-                                     {departments.map((dept, idx) => (
+                                     {departments.map((dept: any, idx) => (
                                         <div key={idx} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100 group">
                                             <div>
                                                 <p className="text-sm font-bold text-slate-800">{dept.label}</p>
                                                 <p className="text-[10px] font-mono text-slate-400">{dept.code}</p>
                                             </div>
-                                            <button onClick={() => { if(confirm('Xóa?')) { const n = [...departments]; n.splice(idx, 1); setDepartments(n); }}} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
+                                            <button onClick={async () => { 
+                                                if(confirm('Xóa phòng ban này?')) { 
+                                                    await deleteDepartment(dept.id || `dept_${dept.code}`);
+                                                    setDepartments(await fetchDepartments());
+                                                }
+                                            }} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
                                         </div>
                                     ))}
                                     <div className="flex gap-4 items-end mt-4 pt-4 border-t border-slate-100">
