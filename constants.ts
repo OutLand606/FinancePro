@@ -1,5 +1,5 @@
 
-import { TaxKpiTarget, FeatureConfig, FieldConfig, CashAccount, AccountOwner, AccountType, Project, ProjectType, ProjectLevel, Partner, PartnerType, CategoryMaster, CategoryType, TransactionScope, MaterialMaster, Contract, ContractType, ContractStatus, PriceRecord, DataSource, DocumentType, Transaction, TransactionType, TransactionStatus, AmountVatMode, SystemRole, Material, SalaryTemplate, KpiConfig, Timesheet, Office, OfficeType, Asset, AssetType, AssetStatus, InventoryItem, Employee } from './types';
+import { TaxKpiTarget, FeatureConfig, FieldConfig, CashAccount, AccountOwner, AccountType, Project, ProjectType, ProjectLevel, Partner, PartnerType, CategoryMaster, CategoryType, TransactionScope, MaterialMaster, Contract, ContractType, ContractStatus, PriceRecord, DataSource, DocumentType, Transaction, TransactionType, TransactionStatus, AmountVatMode, SystemRole, Material, SalaryTemplate, KpiConfig, Timesheet, Office, OfficeType, Asset, AssetType, AssetStatus, InventoryItem, Employee, Ticket } from './types';
 
 export const APP_CURRENT_VERSION = 8; 
 
@@ -127,3 +127,36 @@ export const INITIAL_ASSETS: Asset[] = [
 export const INITIAL_INVENTORY: InventoryItem[] = [];
 
 export const GEMINI_API_KEY = 'AIzaSyBBgth-NCxKrggnbzgD1kWGFGvJYmayNc4'
+
+
+export const INITIAL_TICKETS: Ticket[] = [
+    {
+        id: 'tic_001',
+        code: 'REQ-2410-001',
+        title: 'Yêu cầu bóc tách BOQ Dự án A',
+        type: 'REQUEST_BOQ',
+        priority: 'HIGH',
+        description: 'Nhờ phòng Kỹ thuật bóc tách khối lượng cho bản vẽ mới nhất của dự án Nhà phố anh Hải.',
+        creatorId: 'emp_owner',
+        creatorName: 'Admin Thái Bình Dương',
+        departmentCode: 'TECH',
+        assigneeIds: [],
+        followerIds: [],
+        projectId: 'proj_sample_01', // Assumes a project exists or will exist
+        status: 'IN_PROGRESS',
+        createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
+        updatedAt: new Date().toISOString(),
+        comments: [
+            {
+                id: 'cm_001',
+                ticketId: 'tic_001',
+                userId: 'emp_owner',
+                userName: 'Admin Thái Bình Dương',
+                content: 'Đã gửi bản vẽ qua Zalo, các bạn check nhé.',
+                attachments: [],
+                createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
+            }
+        ],
+        attachments: []
+    }
+];

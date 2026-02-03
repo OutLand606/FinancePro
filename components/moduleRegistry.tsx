@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Wallet, FolderKanban, PieChart, Users, 
   FileCheck, ShoppingBag, Settings as SettingsIcon, Bot,
   Clock, CreditCard, UserCircle, Briefcase, User, Contact,
-  Target, Building2, Scale
+  Target, Building2, Scale, MessageSquare
 } from 'lucide-react';
 
 import Dashboard from './Dashboard.tsx';
@@ -24,6 +24,8 @@ import KPIManager from './KPIManager.tsx';
 import OfficeManager from './OfficeManager.tsx';
 import AIAnalyst from './AIAnalyst.tsx';
 import InvoiceBalanceManager from './InvoiceBalanceManager.tsx';
+import WorkflowManager from '../components/WorkflowManager.tsx';
+
 
 export const APP_MODULES: AppModuleDefinition[] = [
     {
@@ -32,6 +34,13 @@ export const APP_MODULES: AppModuleDefinition[] = [
         enabled: true,
         icon: LayoutDashboard,
         component: (props: GlobalDataProps) => <Dashboard currentUser={props.currentUser} transactions={props.transactions} projects={props.projects} accounts={props.accounts} onNavigate={props.onNavigate} />
+    },
+    {
+        key: 'workflow',
+        label: 'Workflow & Tickets',
+        enabled: true,
+        icon: MessageSquare,
+        component: (props: GlobalDataProps) => <WorkflowManager projects={props.projects} currentUser={props.currentUser} />
     },
     {
         key: 'projects',

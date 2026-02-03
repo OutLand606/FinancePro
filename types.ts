@@ -129,6 +129,7 @@ export interface UserContext {
     managedProjectIds: string[];
     isAuthenticated: boolean;
     avatarUrl?: string;
+    department?: string; 
 }
 
 export interface Attachment {
@@ -894,4 +895,180 @@ export interface CostSnapshot {
     ratioOverhead: number;
     plan: CostPlan;
     warnings: string[];
+}
+
+export type TicketStatus = 'NEW' | 'IN_PROGRESS' | 'WAITING_REVIEW' | 'WAITING' | 'COMPLETED' | 'CANCELLED';
+export type TicketPriority = 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
+export type TicketType = 
+    | 'REQUEST_PURCHASE' 
+    | 'REQUEST_PAYMENT'  
+    | 'REQUEST_BOQ'      
+    | 'REQUEST_DOCS'     
+    | 'REQUEST_LEAVE'    
+    | 'REQUEST_IT'       
+    | 'SUGGESTION'       
+    | 'OTHER';
+
+export interface TicketStats {
+    total: number;
+    pending: number;
+    urgent: number;
+    completedThisMonth: number;
+    avgSatisfaction: number;
+    myPendingCount: number;
+    aiInsight: string;
+    
+    byDept: { name: string, value: number }[];
+    byProject: { name: string, value: number }[];
+    slaStatus: { onTime: number, overdue: number };
+    avgResolutionHours: number;
+    
+    lazyEmployees: { name: string, count: number }[];
+    workloadByDept: { name: string, value: number }[]; 
+}
+
+export interface ManualReminder {
+    id: string;
+    targetName: string;
+    content: string;
+    dueDate?: string;
+    isDone: boolean;
+    createdAt: string;
+}
+
+export interface Ticket {
+    id: string;
+    code: string;
+    title: string;
+    type: TicketType;
+    priority: TicketPriority;
+    description: string;
+    completionCriteria?: string;
+    
+    creatorId: string;
+    creatorName: string;
+    creatorAvatar?: string;
+    
+    assigneeIds: string[];
+    followerIds: string[];
+    departmentCode: string;
+
+    // Configurable Approver
+    approverId?: string; 
+    approverName?: string;
+
+    projectId?: string;
+    projectName?: string;
+    
+    status: TicketStatus;
+    createdAt: string;
+    updatedAt: string;
+    lastActivityAt?: string;
+    
+    slaDeadline?: string;
+    startedAt?: string;
+    closedAt?: string;
+    firstResponseAt?: string;
+    
+    // Approval info
+    approvedBy?: string;
+    approvedAt?: string;
+
+    rating?: number;
+    ratingComment?: string;
+    
+    isRecurring?: boolean;
+    recurringType?: 'MONTHLY' | 'WEEKLY';
+    
+    comments: TicketComment[];
+    history?: TicketLog[];
+    attachments: Attachment[];
+    
+    isOverdue?: boolean;
+    reminderHistory?: string[];
+}
+
+export interface TicketLog {
+    id: string;
+    action: 'CREATE' | 'UPDATE_STATUS' | 'COMMENT' | 'ASSIGN' | 'AUTO_REMINDER' | 'REJECTED' | 'APPROVED';
+    oldValue?: string;
+    newValue?: string;
+    actorId: string;
+    actorName: string;
+    timestamp: string;
+    details?: string;
+}
+
+export interface TicketComment {
+    id: string;
+    ticketId: string;
+    userId: string;
+    userName: string;
+    userAvatar?: string;
+    content: string;
+    attachments: Attachment[];
+    createdAt: string;
+    isSystemLog?: boolean; 
+}
+
+export interface EmployeeEvaluation {
+    empId: string;
+    activeTasks: number;
+    totalResolved: number;
+    avgResolutionHours: number;
+    avgRating: number;
+    overdueCount: number;
+}
+
+
+export interface Ticket {
+    id: string;
+    code: string;
+    title: string;
+    type: TicketType;
+    priority: TicketPriority;
+    description: string;
+    completionCriteria?: string;
+    
+    creatorId: string;
+    creatorName: string;
+    creatorAvatar?: string;
+    
+    assigneeIds: string[];
+    followerIds: string[];
+    departmentCode: string;
+
+    // Configurable Approver
+    approverId?: string; 
+    approverName?: string;
+
+    projectId?: string;
+    projectName?: string;
+    
+    status: TicketStatus;
+    createdAt: string;
+    updatedAt: string;
+    lastActivityAt?: string;
+    
+    slaDeadline?: string;
+    startedAt?: string;
+    closedAt?: string;
+    firstResponseAt?: string;
+    
+    // Approval info
+    approvedBy?: string;
+    approvedAt?: string;
+
+    rating?: number;
+    ratingComment?: string;
+    
+    isRecurring?: boolean;
+    recurringType?: 'MONTHLY' | 'WEEKLY';
+    
+    comments: TicketComment[];
+    history?: TicketLog[];
+    attachments: Attachment[];
+    
+    isOverdue?: boolean;
+    reminderHistory?: string[];
 }
