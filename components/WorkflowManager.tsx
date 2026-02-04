@@ -481,12 +481,33 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
 
     // --- OPERATIONS FILTERS LOGIC ---
     const filteredTickets = useMemo(() => {
+        // [DATA VISIBILITY] Chuẩn bị dữ liệu quyền hạn
+        const isAdmin = currentUser.permissions?.includes('SYS_ADMIN');
+        const currentUserId = String(currentUser.id).trim();
+
         return tickets.filter(t => {
+            // ==================================================================================
+            // 0. BỘ LỌC BẢO MẬT (VISIBILITY CHECK) - CHẠY ĐẦU TIÊN
+            // ==================================================================================
+            if (!isAdmin) {
+                const isCreator = String(t.creatorId).trim() === currentUserId;
+                const isAssignee = t.assigneeIds?.some(id => String(id).trim() === currentUserId);
+                
+                // Mở rộng: Phải cho phép Approver (người duyệt) và Follower thấy phiếu thì mới làm việc được
+                const isApprover = String(t.approverId).trim() === currentUserId;
+                const isFollower = t.followerIds?.some(id => String(id).trim() === currentUserId);
+
+                // Nếu KHÔNG PHẢI bất kỳ vai trò nào trong phiếu -> Ẩn ngay lập tức
+                if (!isCreator && !isAssignee && !isApprover && !isFollower) {
+                    return false;
+                }
+            }
+            // ==================================================================================
+
             // 1. Core View Filter (Active vs Done)
             const isCompleted = t.status === 'COMPLETED' || t.status === 'CANCELLED';
             if (filterStatus === 'ACTIVE' && isCompleted) return false;
             if (filterStatus === 'DONE' && !isCompleted) return false;
-            // ALL shows everything
 
             // 2. Search
             const matchesSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase()) || t.code.toLowerCase().includes(searchTerm.toLowerCase());
@@ -511,22 +532,28 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
             }
 
             // 5. Category (Request vs Approval)
+            // Fix logic cũ: Tra cứu category từ config thay vì hardcode
+            const foundTypeConfig: any = ticketTypes.find((type: any) => type.code === t.type);
+            const isApprovalType = foundTypeConfig 
+                ? foundTypeConfig.category === 'APPROVAL' 
+                : APPROVAL_TYPES.includes(t.type);
+
             if (filterCategory !== 'ALL') {
-                const isApproval = APPROVAL_TYPES.includes(t.type);
-                if (filterCategory === 'APPROVAL' && !isApproval) return false;
-                if (filterCategory === 'TASK' && isApproval) return false;
+                if (filterCategory === 'APPROVAL' && !isApprovalType) return false;
+                if (filterCategory === 'TASK' && isApprovalType) return false;
             }
 
-            // 6. Person Filter
+            // 6. Person Filter (Bộ lọc UI - Lọc thêm trong danh sách đã được phép xem)
             if (filterPerson !== 'ALL') {
-                const isCreator = t.creatorId === filterPerson;
-                const isAssignee = t.assigneeIds.includes(filterPerson);
-                if (!isCreator && !isAssignee) return false;
+                // Nếu chọn "Việc của tôi" hoặc chọn 1 nhân viên cụ thể
+                const isCreatorUi = String(t.creatorId).trim() === String(filterPerson).trim();
+                const isAssigneeUi = t.assigneeIds.includes(filterPerson);
+                if (!isCreatorUi && !isAssigneeUi) return false;
             }
 
             return true;
         });
-    }, [tickets, searchTerm, filterStatus, filterPriority, filterTimeMode, filterDate, filterCategory, filterPerson]);
+    }, [tickets, searchTerm, filterStatus, filterPriority, filterTimeMode, filterDate, filterCategory, filterPerson, currentUser, ticketTypes]);
 
     // --- HANDLER: ADD NEW TICKET TYPE DYNAMICALLY ---
     const handleAddTicketType = async () => {
