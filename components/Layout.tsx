@@ -33,6 +33,8 @@ const Layout: React.FC<LayoutProps> = ({
       switch (moduleKey) {
           case 'dashboard': // Ai cũng vào được Dashboard
               return true;
+          case 'workflow': // Ai cũng vào được workflow
+              return true;
           case 'projects': // Quản lý Công Trình
               return perms.some(p => ['PROJECT_VIEW_ALL', 'PROJECT_VIEW_OWN'].includes(p));
           case 'transactions': // Sổ Thu Chi

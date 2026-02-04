@@ -207,7 +207,7 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
     // Config State
     const [departments, setDepartments] = useState([]);
     const [ticketTypes, setTicketTypes] = useState([]);
-    
+
     // UI State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [showConfig, setShowConfig] = useState(false);
@@ -260,6 +260,7 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
     // Completion Flow State
     const [completionNote, setCompletionNote] = useState('');
     const [completionAttachments, setCompletionAttachments] = useState<Attachment[]>([]);
+    const isAdmin = currentUser.permissions.includes('SYS_ADMIN');
 
     useEffect(() => {
         loadData();
@@ -578,7 +579,8 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
             projectName: projects.find(p => p.id === formState.projectId)?.name, // Lưu tên dự án (để hiển thị nhanh)
             completionCriteria: formState.completionCriteria || '', // Lưu tiêu chí hoàn thành
             description: formState.description || '',
-            assigneeIds: formState.assigneeIds, // Mảng ID người xử lý
+            assigneeIds: formState.assigneeIds, // Mảng ID người xử lý,
+            category: typeConfig?.category || (APPROVAL_TYPES.includes(formState.type || '') ? 'APPROVAL' : 'TASK'),
             // --------------------------------------------------------
 
             // --- CÁC TRƯỜNG HỆ THỐNG / CONTEXT ---
@@ -635,53 +637,143 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
 
     const handleQuickAction = async (action: 'APPROVE' | 'REJECT' | 'COMPLETE_REPORT' | 'CLOSE' | 'FINALIZE') => {
         if (!selectedTicket) return;
+
+        // ==================================================================================
+        // 1. CHUẨN BỊ DỮ LIỆU & SO SÁNH (DATA PREPARATION)
+        // ==================================================================================
         
+        // Chuẩn hóa ID để so sánh chính xác tuyệt đối
+        const currentUserId = String(currentUser.id).trim();
+        const isAdmin = currentUser.permissions?.includes('SYS_ADMIN');
+
+        // Lấy cấu hình loại phiếu để tìm defaultApproverId
+        const typeConfig: any = ticketTypes.find((t: any) => t.code === selectedTicket.type);
+        
+        // Xác định ID người duyệt (Ưu tiên Config > Trên phiếu)
+        const configApprId = typeConfig?.defaultApproverId ? String(typeConfig.defaultApproverId).trim() : null;
+        const ticketApprId = selectedTicket.approverId ? String(selectedTicket.approverId).trim() : null;
+        const finalApproverId = configApprId || ticketApprId; 
+
+        // --- CHECK VAI TRÒ (ROLES) ---
+        const isCreator = String(selectedTicket.creatorId).trim() === currentUserId;
+        
+        const isAssignee = selectedTicket.assigneeIds 
+            ? selectedTicket.assigneeIds.some(id => String(id).trim() === currentUserId) 
+            : false;
+            
+        const isApprover = (finalApproverId === currentUserId);
+
+        // --- CHECK NHÓM QUYỀN (PERMISSION GROUPS) ---
+        
+        // Nhóm 1: Quyền LÀM VIỆC (Tiếp nhận, Báo cáo) -> Assignee hoặc Creator
+        const canWork = isAssignee || isCreator || isAdmin;
+
+        // Nhóm 2: Quyền QUYẾT ĐỊNH (Duyệt, Không đạt, Hủy) -> Creator hoặc Approver
+        const canDecide = isCreator || isApprover || isAdmin;
+
+        // --- LOG DEBUG ---
+        console.log(`--- CHECK QUYỀN [${action}] ---`);
+        console.log(`User: ${currentUserId} | IsAdmin: ${isAdmin}`);
+        console.log(`IsAssignee: ${isAssignee} | IsCreator: ${isCreator} | IsApprover: ${isApprover}`);
+        console.log(`=> Can Work: ${canWork} | Can Decide: ${canDecide}`);
+        console.log(`------------------------------`);
+
+        // ==================================================================================
+        // 2. CỔNG BẢO VỆ (GATEKEEPER)
+        // ==================================================================================
+
+        // CỔNG 1: KIỂM TRA QUYỀN LÀM VIỆC
+        // Áp dụng cho: APPROVE (khi trạng thái là NEW - tức là nút "Tiếp nhận") và COMPLETE_REPORT
+        if (action === 'COMPLETE_REPORT' || (action === 'APPROVE' && selectedTicket.status === 'NEW')) {
+            if (!canWork) {
+                alert("⛔ QUYỀN HẠN CHẾ: Chỉ người tạo phiếu hoặc người có tên trong danh sách xử lý (Assignee) mới được phép Tiếp nhận/Báo cáo.");
+                return;
+            }
+        }
+
+        // CỔNG 2: KIỂM TRA QUYỀN QUYẾT ĐỊNH
+        // Áp dụng cho: FINALIZE (Đạt), REJECT (Không đạt), CLOSE (Hủy bỏ)
+        // Lưu ý: Nút APPROVE ở các trạng thái khác (nếu có) cũng có thể coi là quyết định, nhưng ở đây ta bám sát flow.
+        if (action === 'FINALIZE' || action === 'REJECT' || action === 'CLOSE') {
+            if (!canDecide) {
+                // Lấy tên người duyệt để thông báo
+                const approverName = employees.find(e => String(e.id) === finalApproverId)?.fullName || "Người được cấu hình duyệt";
+                alert(`⛔ QUYỀN HẠN CHẾ: Thao tác Duyệt/Hủy chỉ dành cho Người tạo phiếu hoặc Người duyệt (${approverName}).`);
+                return;
+            }
+        }
+
+        // ==================================================================================
+        // 3. THỰC THI LOGIC (EXECUTION)
+        // ==================================================================================
+
         setIsProcessingAction(true);
         try {
-            if (action === 'REJECT') { 
-                 const reason = prompt("Vui lòng nhập lý do từ chối / Yêu cầu làm lại:");
-                 if (!reason) {
-                     setIsProcessingAction(false);
-                     return;
-                 }
-                 
-                 if (selectedTicket.status === 'NEW' && APPROVAL_TYPES.includes(selectedTicket.type)) {
-                     await updateTicketStatus(selectedTicket.id, 'CANCELLED', currentUser, undefined, undefined);
-                     await addTicketComment(selectedTicket.id, `[TỪ CHỐI PHÊ DUYỆT] Lý do: ${reason}`, currentUser);
-                 } else {
-                     await updateTicketStatus(selectedTicket.id, 'IN_PROGRESS', currentUser, undefined, undefined); 
-                     await addTicketComment(selectedTicket.id, `[YÊU CẦU LÀM LẠI] ${reason}`, currentUser);
-                 }
-            } else if (action === 'COMPLETE_REPORT') {
-                 setCompletionNote('');
-                 setCompletionAttachments([]);
-                 setShowCompletionModal(true);
-                 setIsProcessingAction(false);
-                 return;
-            } else if (action === 'FINALIZE') { 
-                 setRatingVal(5);
-                 setRatingComment('');
-                 setShowRatingModal(true);
-                 setIsProcessingAction(false);
-                 return;
-            } else {
-                // GENERIC APPROVE / CLOSE
-                let newStatus: TicketStatus = 'IN_PROGRESS';
-                if (action === 'APPROVE') newStatus = 'IN_PROGRESS';
-                if (action === 'CLOSE') newStatus = 'CANCELLED';
+            // --- HỦY BỎ (CLOSE) ---
+            if (action === 'CLOSE') {
+                if (confirm("Bạn có chắc chắn muốn hủy bỏ yêu cầu này không?")) {
+                    await updateTicketStatus(selectedTicket.id, 'CANCELLED', currentUser);
+                    await addTicketComment(selectedTicket.id, `[ĐÃ HỦY] Yêu cầu đã bị hủy bởi ${currentUser.name}.`, currentUser);
+                } else {
+                    setIsProcessingAction(false);
+                    return;
+                }
+            }
+            
+            // --- TỪ CHỐI / KHÔNG ĐẠT (REJECT) ---
+            else if (action === 'REJECT') { 
+                const reason = prompt("Vui lòng nhập lý do từ chối / Yêu cầu làm lại:");
+                if (!reason) { setIsProcessingAction(false); return; }
                 
-                await updateTicketStatus(selectedTicket.id, newStatus, currentUser);
+                // Nếu đang Mới (NEW) -> Hủy luôn (Từ chối duyệt)
+                if (selectedTicket.status === 'NEW') {
+                    await updateTicketStatus(selectedTicket.id, 'CANCELLED', currentUser);
+                    await addTicketComment(selectedTicket.id, `[TỪ CHỐI DUYỆT] Lý do: ${reason}`, currentUser);
+                } 
+                // Nếu đang chờ duyệt (WAITING_REVIEW) -> Quay lại In Progress (Làm lại)
+                else {
+                    await updateTicketStatus(selectedTicket.id, 'IN_PROGRESS', currentUser); 
+                    await addTicketComment(selectedTicket.id, `[KHÔNG ĐẠT / YÊU CẦU LÀM LẠI] ${reason}`, currentUser);
+                }
+            } 
+            
+            // --- BÁO CÁO (MỞ MODAL) ---
+            else if (action === 'COMPLETE_REPORT') {
+                setCompletionNote('');
+                setCompletionAttachments([]);
+                setShowCompletionModal(true);
+                setIsProcessingAction(false);
+                return; // Dừng để user nhập liệu
+            } 
+            
+            // --- DUYỆT / ĐẠT (MỞ MODAL ĐÁNH GIÁ) ---
+            else if (action === 'FINALIZE') { 
+                setRatingVal(5);
+                setRatingComment('');
+                setShowRatingModal(true);
+                setIsProcessingAction(false);
+                return; // Dừng để user nhập liệu
+            } 
+            
+            // --- TIẾP NHẬN (APPROVE) ---
+            else if (action === 'APPROVE') {
+                // Chuyển trạng thái sang Đang xử lý
+                await updateTicketStatus(selectedTicket.id, 'IN_PROGRESS', currentUser);
+                // Log comment
+                await addTicketComment(selectedTicket.id, `[ĐÃ TIẾP NHẬN] ${currentUser.name} bắt đầu xử lý.`, currentUser);
             }
 
-            // Success flow
+            // Reload dữ liệu sau khi thực hiện xong
             await loadData();
-            // Refresh currently selected ticket from fresh list
+            
+            // Cập nhật lại state của ticket đang chọn để UI render đúng
             const updatedList = await fetchTickets();
             const freshItem = updatedList.find(t => t.id === selectedTicket.id);
             if (freshItem) setSelectedTicket(freshItem);
 
         } catch (error: any) {
-            alert("Lỗi: " + error.message);
+            console.error("Action Error:", error);
+            alert("Lỗi hệ thống: " + error.message);
         } finally {
             setIsProcessingAction(false);
         }
@@ -985,7 +1077,18 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
 
                 <div className="flex gap-2">
                      <button onClick={() => setShowReminderPanel(!showReminderPanel)} className={`p-2.5 rounded-xl transition-all border border-slate-200 shadow-sm ${showReminderPanel ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`} title="Sổ tay nhắc việc"><StickyNote size={18}/></button>
-                     <button onClick={() => setShowConfig(true)} className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all border border-slate-200 shadow-sm"><Settings size={18}/></button>
+                     <button 
+                        onClick={() => setShowConfig(true)} 
+                        disabled={!isAdmin} // Ngăn không cho click nếu không phải Admin
+                        title={!isAdmin ? "Chỉ Admin mới có quyền truy cập cấu hình" : "Cấu hình hệ thống"} // Tooltip giải thích
+                        className={`p-2.5 rounded-xl border border-slate-200 shadow-sm transition-all 
+                            ${!isAdmin 
+                                ? 'bg-slate-50 text-slate-300 cursor-not-allowed opacity-60' // Style khi bị khóa (mờ, không click được)
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200' // Style bình thường
+                            }`}
+                    >
+                        <Settings size={18}/>
+                    </button>
                      <button onClick={() => setIsCreateModalOpen(true)} className="flex items-center px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95">
                         <Plus size={18} className="mr-2"/> Tạo yêu cầu mới
                     </button>
@@ -1076,8 +1179,10 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
                                         const isRecurring = t.isRecurring;
                                         const sla = getTicketSLAStatus(t);
                                         // Dynamic check for Category if available, otherwise fallback to types
-                                        const isApproval = (t as any).category ? (t as any).category === 'APPROVAL' : APPROVAL_TYPES.includes(t.type);
-                                        
+                                        const foundTypeConfig: any = ticketTypes.find((type: any) => type.code === t.type);
+                                        const isApproval = foundTypeConfig 
+                                            ? foundTypeConfig.category === 'APPROVAL' 
+                                            : APPROVAL_TYPES.includes(t.type);
                                         return (
                                             <div 
                                                 key={t.id} 
@@ -1846,7 +1951,7 @@ const WorkflowManager: React.FC<WorkflowManagerProps> = ({ projects, currentUser
                                                     value={type.defaultApproverId || ''}
                                                     onChange={(e) => changeTypeApprover(type.code, e.target.value)}
                                                 >
-                                                    <option value="">-- Mặc định (Admin) --</option>
+                                                    <option value="">-- Tấc Cả --</option>
                                                     {employees.map(e => <option key={e.id} value={e.id}>{e.fullName}</option>)}
                                                 </select>
                                             </div>

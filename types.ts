@@ -986,6 +986,7 @@ export interface Ticket {
     
     isOverdue?: boolean;
     reminderHistory?: string[];
+    category?: string
 }
 
 export interface TicketLog {
